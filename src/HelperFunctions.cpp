@@ -6,21 +6,34 @@
 #include <iomanip>
 #include <random>
 
+Constant getValue(Node* expression){
+	expression->getValue();
+	return Constant(expression->derivativeMemo, expression->outDimentions);
+}
+
 void derive(Node* expression, vector<Variable*>& variables){
 	resetDerivative(variables);
 	expression->getValue();
 
-	NumObject seed = NumObject(1.0);
+	vector<double> seed = {1.0};
 	expression->derive(seed);
 }
 
 void resetDerivative(vector<Variable*>& variables){
 	for(int i = 0; i < variables.size(); i++){
-		variables[i]->derivative = NumObject(variables[i]->derivative.dimentions, 0.0);
+		for(int x = 0; x < variables[i]->outSize; x++){
+			variables[i]->derivative[x] = 0.0;
+		}
 	}
 }
 
-NumObject randomNums(vector<int> dimentions, double mean, double stdDev){
+void initalize(Node* expression){
+	expression->getValueDimentions();
+	vector<int> seed = {};
+	expression->deriveDimentions(seed);
+}
+
+Constant gaussianRandomNums(vector<int> dimentions, double mean, double stdDev){
 	srand(time(NULL));
 
 	random_device rd;
@@ -28,10 +41,10 @@ NumObject randomNums(vector<int> dimentions, double mean, double stdDev){
     normal_distribution<double> d(mean, stdDev);
 
 	if (dimentions.size() == 0){
-		return d(gen);
+		return Constant(d(gen));
 	}
 
-	NumObject ans = NumObject(dimentions);
+	vector<double> ans;
 
 	int total = 1;
 	for(int i = 0; i < dimentions.size(); i++){
@@ -39,45 +52,106 @@ NumObject randomNums(vector<int> dimentions, double mean, double stdDev){
 	}
 
 	for(int i = 0; i < total; i++){
-		ans.values.push_back(d(gen));
+		ans.push_back(d(gen));
 	}
-	return ans;
+	return Constant(ans, dimentions);
 }
 
-NumObject equal(NumObject& a, NumObject& b){
-	NumObject ans = NumObject(a.dimentions, 0);
-	for(int i = 0; i < a.values.size(); i++){
-		if (a.values[i] == b.values[i]){
-			ans.values[i] = 1;
+Constant trunGaussianRandomNums(vector<int> dimentions, double mean, double stdDev){
+	srand(time(NULL));
+
+	random_device rd;
+    mt19937 gen(rd());
+    normal_distribution<double> d(mean, stdDev);
+
+	if (dimentions.size() == 0){
+		double temp = d(gen);
+		while (abs(temp - mean) > stdDev * 2){
+			temp = d(gen);
+		}
+		return Constant(temp);
+	}
+
+	vector<double> ans;
+
+	int total = 1;
+	for(int i = 0; i < dimentions.size(); i++){
+		total *= dimentions[i];
+	}
+
+	for(int i = 0; i < total; i++){
+		double temp = d(gen);
+		while (abs(temp - mean) > stdDev * 2){
+			temp = d(gen);
+		}
+		ans.push_back(temp);
+	}
+	return Constant(ans, dimentions);
+}
+
+Constant uniformRandomNums(vector<int> dimentions, double low, double high){
+	srand(time(NULL));
+
+	random_device rd;
+    mt19937 gen(rd());
+  	uniform_real_distribution<double> d(low, high);
+
+	if (dimentions.size() == 0){
+		return Constant(d(gen));
+	}
+
+	vector<double> ans;
+
+	int total = 1;
+	for(int i = 0; i < dimentions.size(); i++){
+		total *= dimentions[i];
+	}
+
+	for(int i = 0; i < total; i++){
+		ans.push_back(d(gen));
+	}
+	return Constant(ans, dimentions);
+}
+
+Constant equal(Constant& a, Constant& b){
+	vector<double> ans;
+	ans.resize(a.outSize, 0.0);
+
+	for(int i = 0; i < a.outSize; i++){
+		if(a.derivativeMemo[i] == b.derivativeMemo[i]){
+			ans[i] = 1.0;
 		}
 	}
-	return ans;
+
+	return Constant(ans, a.outDimentions);
 }
 
 void numDerive(Node* expression, vector<Variable*>& variables, int n){
 	double delta = 0.00001;
 	int maxIdx = n;
 
-	NumObject a = expression->getValue();
+	expression->getValue();
+	vector<double> a = expression->derivativeMemo;
 
 	for(int i = 0; i < variables.size(); i++){
-		NumObject ans = NumObject(variables[i]->value.dimentions);
+		vector<double> ans;
+		ans.reserve(variables[i]->outSize);
 
 		if(n == -1){
-			maxIdx = variables[i]->value.values.size();
+			maxIdx = variables[i]->outSize;
 		}
 
 		for(int x = 0; x < maxIdx; x++){
-			variables[i]->value.values[x] += delta;
-			NumObject b = expression->getValue();
-			ans.values.push_back((b.values[0] - a.values[0]) / delta);
-			variables[i]->derivative = ans;
-			variables[i]->value.values[x] -= delta;
+			variables[i]->derivativeMemo[x] += delta;
+			expression->getValue();
+			vector<double> b = expression->derivativeMemo;
+			ans.push_back((b[0] - a[0]) / delta);
+			variables[i]->derivativeMemo[x] -= delta;
 		}
 
 		if(n != -1){
-			for(int x = 0; x < (variables[i]->value.values.size() - maxIdx); x++){
-				ans.values.push_back(0.0);
+			for(int x = 0; x < (variables[i]->outSize - maxIdx); x++){
+				ans.push_back(0.0);
 			}
 		}
 
@@ -85,65 +159,73 @@ void numDerive(Node* expression, vector<Variable*>& variables, int n){
 	}
 }
 
-vector<NumObject> compareDerivatives(Node* expression, vector<Variable*>& variables, int n){
+vector<Constant> compareDerivatives(Node* expression, vector<Variable*>& variables, int n){
 	derive(expression, variables);
 
-	vector<NumObject> a;
+	vector<vector<double>> a;
 	for(int i = 0; i < variables.size(); i++){
 		a.push_back(variables[i]->derivative);
 	}
 
 	numDerive(expression, variables, n);
 
-	vector<NumObject> b;
+	vector<vector<double>> b;
 	for(int i = 0; i < variables.size(); i++){
 		b.push_back(variables[i]->derivative);
 	}
 
-	vector<NumObject> ans;
+	vector<Constant> ans;
 	for(int i = 0; i < b.size(); i++){
-		NumObject temp = NumObject(b[i].dimentions);
-		for(int x = 0; x < b[i].values.size(); x++){
-			temp.values.push_back(abs(a[i].values[x] - b[i].values[x]));
+		vector<double> temp;
+		temp.reserve(variables[i]->outSize);
+		for(int x = 0; x < variables[i]->outSize; x++){
+			temp.push_back(abs(a[i][x] - b[i][x]));
 		}
-		ans.push_back(temp);
+		ans.push_back(Constant(temp, variables[i]->outDimentions));
 	}
 	return ans;
 }
 
-NumObject oneHot(NumObject items, int low, int high){
-	NumObject ans = NumObject(vector<int>{items.dimentions[0], (high - low) + 1});
-	for(int i = 0; i < items.values.size(); i++){
+Constant oneHot(Constant items, int low, int high){
+	vector<int> newDimentions;
+	for(int i = 0; i < items.outRank; i++){
+		newDimentions.push_back(items.outDimentions[i]);
+	}
+	newDimentions.push_back(high - low + 1);
+
+	vector<double> ans;
+	ans.reserve(items.outSize * (high - low + 1));
+	for(int i = 0; i < items.outSize; i++){
 		for(int x = 0; x < (high - low) + 1; x++){
-			if(items.values[i] == x + low){
-				ans.values.push_back(1.0);
+			if(items.derivativeMemo[i] == x + low){
+				ans.push_back(1.0);
 			}
 			else{
-				ans.values.push_back(0.0);
+				ans.push_back(0.0);
 			}
 		}
 	}
-	return ans;
+	return Constant(ans, newDimentions);
 }
 
-void saveData(NumObject data, string name){
+void saveData(Constant data, string name){
 	ofstream newFile;
 	newFile.open(name, ios::out | ios::trunc);
 
-	newFile << data.rank << endl;
+	newFile << data.outRank << endl;
 
-	for(int i = 0; i < data.rank; i++){
-		newFile << data.dimentions[i] << endl;
+	for(int i = 0; i < data.outRank; i++){
+		newFile << data.outDimentions[i] << endl;
 	}
 
-	for(int i = 0; i < data.values.size(); i++){
-		newFile << fixed << setprecision(6) << data.values[i] << endl;
+	for(int i = 0; i < data.outSize; i++){
+		newFile << fixed << setprecision(6) << data.derivativeMemo[i] << endl;
 	}
 
 	newFile.close();
 }
 
-NumObject loadData(string name){
+Constant loadData(string name){
 	ifstream newFile;
 	newFile.open(name, ios::in);
 
@@ -166,6 +248,46 @@ NumObject loadData(string name){
 
 	newFile.close();
 
-	return NumObject(values, dimentions);
+	return Constant(values, dimentions);
+}
+
+
+Gate::Gate(Node* a){
+	closed = false;
+	inputs.push_back(a);
+}
+
+void Gate::getValue(){
+	inputs[0]->getValue();
+	derivativeMemo = inputs[0]->derivativeMemo;
+}
+
+void Gate::getValueDimentions(){
+	inputs[0]->getValueDimentions();
+
+	outRank = inputs[0]->outRank;
+	outSize = inputs[0]->outSize;
+	outDimentions = inputs[0]->outDimentions;
+}
+
+void Gate::derive(vector<double>& seed){
+	if(closed == false){
+		inputs[0]->derive(seed);
+	}
+}
+
+void Gate::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
+
+	inputs[0]->deriveDimentions(seedDimentions);
+}
+
+string Gate::describe(){
+	return inputs[0]->describe();
 }
 

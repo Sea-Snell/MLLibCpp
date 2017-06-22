@@ -1,5 +1,4 @@
 #include "CostFunctions.hpp"
-#include "MapVals.hpp"
 
 MeanSquared::MeanSquared(Node* hypothesis, Node* y, int dimentionVal){
 	inputs.push_back(hypothesis);
@@ -8,38 +7,59 @@ MeanSquared::MeanSquared(Node* hypothesis, Node* y, int dimentionVal){
 	dimention = dimentionVal;
 }
 
-NumObject MeanSquared::getValue(){
-	NumObject hypothesis = inputs[0]->getValue();
-	NumObject y = inputs[1]->getValue();
+void MeanSquared::getValue(){
+	inputs[0]->getValue();
+	inputs[1]->getValue();
 
-	vector<NumObject> items1 = {hypothesis, y};
-	differenceMemo = mapVals(this, &MeanSquared::differenceOperation, items1);
+	double total = 0.0;
+	for(int i = 0; i < inputs[0]->outSize; i++){
+		differenceMemo[i] = inputs[0]->derivativeMemo[i] - inputs[1]->derivativeMemo[i];
+		total += differenceMemo[i] * differenceMemo[i];
+	}
 
-	vector<NumObject> items2 = {differenceMemo};
-	NumObject temp = mapVals(this, &MeanSquared::powerOperation, items2);
-	NumObject total = reduceSumByDimention(temp, hypothesis.rank);
-	total.values[0] /= differenceMemo.dimentions[dimention];
-	return memoize(total);
+	derivativeMemo[0] = total / inputs[0]->outDimentions[dimention];
 }
 
-double MeanSquared::differenceOperation(vector<double>& a){
-	return a[0] - a[1];
+void MeanSquared::getValueDimentions(){
+	inputs[0]->getValueDimentions();
+	inputs[1]->getValueDimentions();
+
+	outDimentions = {};
+	outRank = 0;
+	outSize = 1;
+	derivativeMemo.clear();
+	derivativeMemo.resize(1, 0.0);
+
+	differenceMemo.clear();
+	differenceMemo.resize(inputs[0]->outSize, 0.0);
 }
 
-double MeanSquared::powerOperation(vector<double>& a){
-	return a[0] * a[0];
-}
-
-void MeanSquared::derive(NumObject& seed){
+void MeanSquared::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, NumObject(2.0 / differenceMemo.dimentions[dimention]), differenceMemo};
-		NumObject eval1 = mapVals(this, &MeanSquared::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < ansSize; i++){
+			ans[i] = seed[0] * average * differenceMemo[i];
+		}
+		inputs[0]->derive(ans);
 	}
 }
 
-double MeanSquared::deriveOperation1(vector<double>& a){
-	return a[0] * a[1] * a[2];
+void MeanSquared::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
+
+	ansDimentions = inputs[0]->outDimentions;
+	ansRank = inputs[0]->outRank;
+	ansSize = inputs[0]->outSize;
+	ans.clear();
+	ans.resize(ansSize, 0.0);
+
+	average = 2.0 / inputs[0]->outDimentions[dimention];
+
+	inputs[0]->deriveDimentions(ansDimentions);
 }
 
 string MeanSquared::describe(){
@@ -53,31 +73,52 @@ CrossEntropy::CrossEntropy(Node* hypothesis, Node* y, int dimentionVal){
 	dimention = dimentionVal;
 }
 
-NumObject CrossEntropy::getValue(){
-	NumObject hypothesis = inputs[0]->getValue();
-	NumObject y = inputs[1]->getValue();
+void CrossEntropy::getValue(){
+	inputs[0]->getValue();
+	inputs[1]->getValue();
 
-	vector<NumObject> items1 = {hypothesis, y};
-	NumObject temp = mapVals(this, &CrossEntropy::operation, items1);
-	NumObject ans = reduceSumByDimention(temp, temp.rank);
-	ans.values[0] /= temp.dimentions[dimention];
-	return memoize(ans);
-}
-
-double CrossEntropy::operation(vector<double>& a){
-	return -(a[1] * log(a[0]) + (1.0 - a[1]) * log(1.0 - a[0]));
-}
-
-void CrossEntropy::derive(NumObject& seed){
-	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, NumObject(-1.0 / inputs[0]->derivativeMemo.dimentions[dimention]), inputs[1]->derivativeMemo, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &CrossEntropy::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+	double total = 0.0;
+	for(int i = 0; i < inputs[0]->outSize; i++){
+		total -= inputs[1]->derivativeMemo[i] * log(inputs[0]->derivativeMemo[i]) + (1.0 - inputs[1]->derivativeMemo[i]) * log(1.0 - inputs[0]->derivativeMemo[i]);
 	}
+	derivativeMemo[0] = total / inputs[0]->outDimentions[dimention];
 }
 
-double CrossEntropy::deriveOperation1(vector<double>& a){
-	return (a[0] * a[1] * (a[2] - a[3])) / (a[3] * (1.0 - a[3]));
+void CrossEntropy::getValueDimentions(){
+	inputs[0]->getValueDimentions();
+	inputs[1]->getValueDimentions();
+
+	outDimentions = {};
+	outRank = 0;
+	outSize = 1;
+	derivativeMemo.clear();
+	derivativeMemo.resize(1, 0.0);
+}
+
+void CrossEntropy::derive(vector<double>& seed){
+	for(int i = 0; i < ansSize; i++){
+		ans[i] = (seed[0] * average * (inputs[1]->derivativeMemo[i] - inputs[0]->derivativeMemo[i])) / (inputs[0]->derivativeMemo[i] * (1.0 - inputs[0]->derivativeMemo[i]));
+	}
+	inputs[0]->derive(ans);
+}
+
+void CrossEntropy::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
+
+	ansDimentions = inputs[0]->outDimentions;
+	ansRank = inputs[0]->outRank;
+	ansSize = inputs[0]->outSize;
+	ans.clear();
+	ans.resize(ansSize, 0.0);
+
+	average = -1.0 / inputs[0]->outDimentions[dimention];
+
+	inputs[0]->deriveDimentions(ansDimentions);
 }
 
 string CrossEntropy::describe(){
@@ -92,85 +133,149 @@ CrossEntropySoftmax::CrossEntropySoftmax(Node* hypothesis, Node* y, int dimentio
 	meanDimention = meanDimentionVal;
 }
 
-NumObject CrossEntropySoftmax::getValue(){
-	NumObject hypothesis = inputs[0]->getValue();
-	NumObject y = inputs[1]->getValue();
+void CrossEntropySoftmax::getValue(){
+	inputs[0]->getValue();
+	inputs[1]->getValue();
+
+	double lowVal = -numeric_limits<double>::infinity();
+	for(int i = 0; i < newSize; i++){
+		maxVals[i] = lowVal;
+	}
+
+	for(int i = 0; i < preSum; i++){
+		for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
+			for(int z = 0; z < postSum; z++){
+				maxVals[i * postSum + z] = max(maxVals[i * postSum + z], inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + postSum * x + z]);
+			}
+		}
+	}
+
+	for(int i = 0; i < preSum; i++){
+		for(int z = 0; z < postSum; z++){
+			double sum = 0.0;
+			for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
+				sum += exp(inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] - maxVals[i * postSum + z]);
+			}
+			temp[i * postSum + z] = sum;
+		}
+	}
+
+	for(int i = 0; i < newSize; i++){
+		temp2[i] = maxVals[i] + log(temp[i]);
+	}
+
+	for(int i = 0; i < preSum; i++){
+		for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
+			for(int z = 0; z < postSum; z++){
+				double temp3 = inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] - temp2[i * postSum + z];
+				softmaxMemo[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] = exp(temp3);
+				ans[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] = inputs[1]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] * temp3;
+			}
+		}
+	}
+
+	double total = 0.0;
+	for(int i = 0; i < inputs[0]->outSize; i++){
+		total += ans[i];
+	}
+
+	derivativeMemo[0] = total / -inputs[0]->outDimentions[meanDimention];
+}
+
+void CrossEntropySoftmax::getValueDimentions(){
+	inputs[0]->getValueDimentions();
+	inputs[1]->getValueDimentions();
 
 	if(dimention == -1){
-		dimention = hypothesis.rank - 1;
+		dimention = inputs[0]->outRank - 1;
 	}
 
-	vector<int> newDimentions;
-	for(int i = 0; i < hypothesis.rank; i++){
+	newSize = 1;
+	newDimentions.clear();
+	for(int i = 0; i < inputs[0]->outRank; i++){
 		if (i != dimention){
-			newDimentions.push_back(hypothesis.dimentions[i]);
+			newSize *= inputs[0]->outDimentions[i];
+			newDimentions.push_back(inputs[0]->outDimentions[i]);
 		}
 	}
+	
 	double lowVal = -numeric_limits<double>::infinity();
-	NumObject maxVals = NumObject(newDimentions, lowVal);
+	maxVals.clear();
+	maxVals.resize(newSize, lowVal);
 
-	int preSum = 1;
+
+	preSum = 1;
 	for(int i = 0; i < dimention; i++){
-		preSum *= hypothesis.dimentions[i];
+		preSum *= inputs[0]->outDimentions[i];
 	}
-	int postSum = hypothesis.values.size() / (preSum * hypothesis.dimentions[dimention]);
+	postSum = inputs[0]->outSize / (preSum * inputs[0]->outDimentions[dimention]);
 
-	for(int i = 0; i < preSum; i++){
-		for(int x = 0; x < hypothesis.dimentions[dimention]; x++){
-			for(int z = 0; z < postSum; z++){
-					maxVals.values[i * postSum + z] = max(maxVals.values[i * postSum + z], hypothesis.values[i * postSum * hypothesis.dimentions[dimention] + postSum * x + z]);
-			}
-		}
-	}
+	temp.clear();
+	temp.resize(newSize, 0.0);
 
-	NumObject temp = NumObject(maxVals.dimentions, 0.0);
-	for(int i = 0; i < preSum; i++){
-		for(int x = 0; x < hypothesis.dimentions[dimention]; x++){
-			for(int z = 0; z < postSum; z++){
-				temp.values[i * postSum + z] += exp(hypothesis.values[i * postSum * hypothesis.dimentions[dimention] + x * postSum + z] - maxVals.values[i * postSum + z]);
-			}
-		}
-	}
+	temp2.clear();
+	temp2.resize(newSize, 0.0);
 
-	vector<NumObject> items1 = {maxVals, temp};
-	NumObject temp2 = mapVals(this, &CrossEntropySoftmax::operation1, items1);
+	ans.clear();
+	ans.resize(inputs[0]->outSize);
 
-	NumObject ans = NumObject(hypothesis.dimentions);
-	softmaxMemo = NumObject(hypothesis.dimentions);
-	double temp3;
-	for(int i = 0; i < preSum; i++){
-		for(int x = 0; x < hypothesis.dimentions[dimention]; x++){
-			for(int z = 0; z < postSum; z++){
-				temp3 = hypothesis.values[i * postSum * hypothesis.dimentions[dimention] + x * postSum + z] - temp2.values[i * postSum + z];
-				softmaxMemo.values.push_back(exp(temp3));
-				ans.values.push_back(y.values[i * postSum * hypothesis.dimentions[dimention] + x * postSum + z] * temp3);
-			}
-		}
-	}
+	softmaxMemo.clear();
+	softmaxMemo.resize(inputs[0]->outSize);
 
-	NumObject ans2 = reduceSumByDimention(ans, hypothesis.rank);
-	ans2.values[0] /= -hypothesis.dimentions[meanDimention];
-
-	return memoize(ans2);
+	outRank = 0;
+	outDimentions = {};
+	outSize = 1;
+	derivativeMemo.clear();
+	derivativeMemo.resize(1, 0.0);
 }
 
-double CrossEntropySoftmax::operation1(vector<double>& a){
-	return a[0] + log(a[1]);
-}
-
-void CrossEntropySoftmax::derive(NumObject& seed){
+void CrossEntropySoftmax::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, NumObject(1.0 / inputs[0]->derivativeMemo.dimentions[meanDimention]), softmaxMemo, inputs[1]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &CrossEntropySoftmax::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < ansSize2; i++){
+			ans2[i] = seed[0] * average * (softmaxMemo[i] - inputs[1]->derivativeMemo[i]);
+		}
+		inputs[0]->derive(ans2);
 	}
 }
 
-double CrossEntropySoftmax::deriveOperation1(vector<double>& a){
-	return a[0] * a[1] * (a[2] - a[3]);
+void CrossEntropySoftmax::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
+
+	ansDimentions2 = inputs[0]->outDimentions;
+	ansRank2 = inputs[0]->outRank;
+	ansSize2 = inputs[0]->outSize;
+	ans2.clear();
+	ans2.resize(ansSize2, 0.0);
+
+	average = 1.0 / inputs[0]->outDimentions[meanDimention];
+
+	inputs[0]->deriveDimentions(ansDimentions2);
 }
 
 string CrossEntropySoftmax::describe(){
 	return name + "(" + inputs[0]->describe() + ", " + inputs[1]->describe() + ", " + to_string(dimention) + ", " + to_string(meanDimention) + ")";
+}
+
+void KL::getValue(){
+	inputs[0]->getValue();
+	inputs[1]->getValue();
+
+	double total = 0.0;
+	for(int i = 0; i < inputs[0]->outSize; i++){
+		total += inputs[1]->derivativeMemo[i] * log(inputs[1]->derivativeMemo[i] / inputs[0]->derivativeMemo[i]);
+	}
+	derivativeMemo[0] = total / inputs[0]->outDimentions[dimention];
+}
+
+void KL::derive(vector<double>& seed){
+	for(int i = 0; i < ansSize; i++){
+		ans[i] = seed[0] * inputs[0]->derivativeMemo[i];
+	}
+	inputs[0]->derive(ans);
 }
 

@@ -7,22 +7,26 @@ public:
 	double parameter;
 	int size;
 
+	int inputSize;
+
+	vector<vector<double>> ans;
+
 	L2(Node* cost, vector<Node*> weights, int dataSize, double parameterVal);
-	NumObject getValue();
-	void derive(NumObject& seed);
-	double operation(vector<double>& a);
+	void getValue();
+	void getValueDimentions();
+	void derive(vector<double>& seed);
+	void deriveDimentions(vector<int>& seedDimentionsVal);
 	string describe();
 };
 
 class L1: public L2{
 public:
 	L1(Node* cost, vector<Node*> weights, int dataSize, double parameterVal): L2(cost, weights, dataSize, parameterVal){name = "L1";}
-	NumObject getValue();
-	void derive(NumObject& seed);
-	double operation(vector<double>& a);
+	void getValue();
+	void derive(vector<double>& seed);
 };
 
-void maxNorm(NumObject& weight, int dimention, double c);
+void maxNorm(Constant& weight, int dimention, double c);
 
 class Dropout: public Node{
 public:
@@ -31,10 +35,20 @@ public:
 	vector<double> dropped;
 	bool training;
 
+	int preSum;
+	int postSum;
+
+	vector<double> ans;
+
+	int preSum1;
+	int postSum1;
+
 	Dropout(Node* a, int dimentionVal, double probabilityVal);
-	NumObject getValue();
+	void getValue();
+	void getValueDimentions();
 	void updateDrop(int size);
-	void derive(NumObject& seed);
+	void derive(vector<double>& seed);
+	void deriveDimentions(vector<int>& seedDimentionsVal);
 	string describe();
 };
 

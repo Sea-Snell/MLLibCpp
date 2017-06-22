@@ -1,132 +1,5 @@
 #include "Node.hpp"
 #include "Math.hpp"
-#include "MapVals.hpp"
-
-NumObject::NumObject(){}
-
-NumObject::NumObject(double val){
-	rank = 0;
-	values.push_back(val);
-}
-
-NumObject::NumObject(vector<double> val, vector<int> dimentionsList){
-	rank = dimentionsList.size();
-	dimentions = dimentionsList;
-	values = val;
-}
-
-NumObject::NumObject(vector<int> dimentionsList, double fill){
-	rank = dimentionsList.size();
-	dimentions = dimentionsList;
-
-	int tempSize = 1.0;
-	for (int i = 0; i < rank; i++){
-		tempSize *= dimentions[i];
-	}
-
-	values.resize(tempSize, fill);
-}
-
-NumObject::NumObject(vector<int> dimentionsList){
-	rank = dimentionsList.size();
-	dimentions = dimentionsList;
-
-	int tempSize = 1.0;
-	for (int i = 0; i < rank; i++){
-		tempSize *= dimentions[i];
-	}
-
-	values.reserve(tempSize);
-}
-
-string NumObject::describe(){
-	if (rank == 0){
-		return to_string(values[0]);
-	}
-	string returnVal = "";
-	int tempMod = 0;
-	int totalElements = values.size();
-
-	for(int i = 0; i < totalElements; i++){
-		tempMod = totalElements;
-		for (int x = 0; x < rank; x++){
-			if (i % tempMod == 0){
-				returnVal += "[";
-			}
-			tempMod /= dimentions[x];
-		}
-
-		returnVal += to_string(values[i]);
-
-		tempMod = totalElements;
-		for (int x = 0; x < rank; x++){
-			if ((i + 1) % tempMod == 0){
-				returnVal += "]";
-			}
-			tempMod /= dimentions[x];
-		}
-		
-		if (i < totalElements - 1){
-			returnVal += ", ";
-		}
-	}
-	return returnVal;
-}
-
-NumObject NumObject::getIndex(vector<int> idx){
-	int startIdx = 0;
-	int endIdx = 0;
-	int temp = 0;
-	int currentProduct = 1;
-	vector<int> newDimentions;
-
-	for(int i = dimentions.size() - 1; i >= 0; i--){
-		if(i < idx.size()){
-			if (i == idx.size() - 1){
-				temp = currentProduct;
-			}
-			startIdx += idx[i] * currentProduct;
-		}
-		else{
-			newDimentions.push_back(dimentions[dimentions.size() + idx.size() - 1 - i]);
-		}
-		currentProduct *= dimentions[i];
-	}
-
-	endIdx = startIdx + temp - 1;
-
-
-	vector<double> newVals (begin(values) + startIdx, begin(values) + endIdx + 1);
-
-	return NumObject(newVals, newDimentions);
-}
-
-void NumObject::setIndex(vector<int> idx, vector<double> val){
-	int startIdx = 0;
-	int currentProduct = 1;
-
-	for(int i = dimentions.size() - 1; i >= 0; i--){
-		if(i < idx.size()){
-			startIdx += idx[i] * currentProduct;
-		}
-		currentProduct *= dimentions[i];
-	}
-
-	for(int i = 0; i < val.size(); i++){
-		values[startIdx + i] = val[i];
-	}
-}
-
-void NumObject::setIndex(vector<int> idx, double val){
-	int startIdx = 0;
-	int currentProduct = 1;
-
-	for(int i = dimentions.size() - 1; i >= 0; i--){
-		startIdx += idx[i] * currentProduct;
-		currentProduct *= dimentions[i];
-	}
-	values[startIdx] = val;
-}
 
 string Node::describe(){
 	string ans = name + "(";
@@ -140,71 +13,120 @@ string Node::describe(){
 	return ans;
 }
 
-NumObject& Node::memoize(NumObject& val){
+Constant::Constant(vector<double> val, vector<int> dimentionsVal, string placeHolder){
 	derivativeMemo = val;
-	return val;
-}
-
-Constant::Constant(NumObject val, string placeHolder){
-	value = val;
 	name = placeHolder;
+	outDimentions = dimentionsVal;
+	outRank = dimentionsVal.size();
+
+	outSize = 1;
+	for(int i = 0; i < outRank; i++){
+		outSize *= outDimentions[i];
+	}
 }
 
-NumObject Constant::getValue(){
-	return memoize(value);
+Constant::Constant(double val, string placeHolder){
+	derivativeMemo.push_back(val);
+	name = placeHolder;
+	outRank = 0;
+	outSize = 1;
+}
+
+Constant::Constant(const Constant &a){
+	derivativeMemo = a.derivativeMemo;
+	name = a.name;
+	outDimentions = a.outDimentions;
+	outRank = a.outRank;
+	outSize = a.outSize;
+}
+
+void Constant::getValue(){
+	return;
 }
 
 string Constant::describe(){
 	if (name == ""){
-		return value.describe();
+		if (outRank == 0){
+			return to_string(derivativeMemo[0]);
+		}
+		string returnVal = "";
+		int tempMod = 0;
+		int totalElements = outSize;
+
+		for(int i = 0; i < totalElements; i++){
+			tempMod = totalElements;
+			for (int x = 0; x < outRank; x++){
+				if (i % tempMod == 0){
+					returnVal += "[";
+				}
+				tempMod /= outDimentions[x];
+			}
+
+			returnVal += to_string(derivativeMemo[i]);
+
+			tempMod = totalElements;
+			for (int x = 0; x < outRank; x++){
+				if ((i + 1) % tempMod == 0){
+					returnVal += "]";
+				}
+				tempMod /= outDimentions[x];
+			}
+		
+			if (i < totalElements - 1){
+				returnVal += ", ";
+			}
+		}
+		return returnVal;
 	}
 	return name;
 }
 
-void Constant::derive(NumObject& seed){
+void Constant::derive(vector<double>& seed){
 	return;
 }
 
-Variable::Variable(NumObject val, string placeHolder): Constant(val, placeHolder){
-	derivative = NumObject(value.dimentions, 0.0);
+void Constant::getValueDimentions(){
+	return;
 }
 
-void Variable::derive(NumObject& seed){
-	vector<NumObject> items = {derivative, seed};
-	derivative = mapVals(this, &Variable::deriveOperation, items);
+void Constant::deriveDimentions(vector<int>& seedDimentionsVal){
+	return;
 }
 
-double Variable::deriveOperation(vector<double>& a){
-	return a[0] + a[1];
+Variable::Variable(vector<double> val, vector<int> dimentions, string placeHolder): Constant(val, dimentions, placeHolder){
+	derivative.resize(outSize, 0.0);
 }
 
-NumObject reduceSumByDimention(NumObject& nums, int byDimention){
-	if(byDimention <= 0){
-		return nums;
-	}
+Variable::Variable(double val, string placeHolder): Constant(val, placeHolder){
+	derivative.resize(outSize, 0.0);
+}
 
-	int resultSize = nums.values.size();
-	vector<int> resultDimentions;
-	for(int i = 0; i < nums.rank; i++){
-		if (i < byDimention){
-			resultSize /= nums.dimentions[i];
-		}
-		else{
-			resultDimentions.push_back(nums.dimentions[i]);
-		}
-	}
+Variable::Variable(const Constant &a): Constant(a){
+	derivative.resize(outSize, 0.0);
+}
 
-	NumObject answer = NumObject(resultDimentions);
-	for(int i = 0; i < nums.values.size(); i++){
-		if (i < resultSize){
-			answer.values.push_back(nums.values[i]);
-		}
-		else{
-			answer.values[i % resultSize] += nums.values[i];
-		}
-	}
+void Variable::getValueDimentions(){
+	location = 0;
+}
 
-	return answer;
+void Variable::getValue(){
+	location = 0;
+}
+
+void Variable::derive(vector<double>& seed){
+	for(int i = 0; i < outSize; i++){
+		derivative[i] += seed[i % seedSizes[location]];
+	}
+	location += 1;
+}
+
+void Variable::deriveDimentions(vector<int>& seedDimentionsVal){
+	int temp = 1;
+	for(int i = 0; i < seedDimentionsVal.size(); i++){
+		temp *= seedDimentionsVal[i];
+	}
+	seedSizes.push_back(temp);
+	location += 1;
 }
 
 BasicOperator::BasicOperator(Node* a, Node* b){
@@ -212,24 +134,128 @@ BasicOperator::BasicOperator(Node* a, Node* b){
 	inputs.push_back(b);
 }
 
-NumObject BasicOperator::getValue(){
-	vector<NumObject> items = {inputs[0]->getValue(), inputs[1]->getValue()};
-	NumObject ans = mapVals(this, &BasicOperator::operation, items);
-	return memoize(ans);
+void BasicOperator::getValue(){
+	inputs[0]->getValue();
+	inputs[1]->getValue();
+
+	for(int i = 0; i < outSize; i++){
+		derivativeMemo[i] = operation(inputs[0]->derivativeMemo[i % inputs[0]->outSize], inputs[1]->derivativeMemo[i % inputs[1]->outSize]);
+	}
 }
 
 string BasicOperator::describe(){
 	return "(" + inputs[0]->describe() + " " + name + " " + inputs[1]->describe() + ")";
 }
 
+void BasicOperator::getValueDimentions(){
+	inputs[0]->getValueDimentions();
+	inputs[1]->getValueDimentions();
+
+	if(inputs[0]->outRank > inputs[1]->outRank){
+		outRank = inputs[0]->outRank;
+		outDimentions = inputs[0]->outDimentions;
+	}
+	else{
+		outRank = inputs[1]->outRank;
+		outDimentions = inputs[1]->outDimentions;
+	}
+
+	outSize = 1;
+	for(int i = 0; i < outRank; i++){
+		outSize *= outDimentions[i];
+	}
+
+	derivativeMemo.clear();
+	derivativeMemo.resize(outSize, 0.0);
+}
+
+void BasicOperator::helpDeriveDimentions(vector<vector<int>> dependentDimentions1, vector<vector<int>> dependentDimentions2){
+	tempDimentions1 = helpMapDimentions(dependentDimentions1);
+	tempRank1 = tempDimentions1.size();
+	tempSize1 = getSize(tempDimentions1);
+	temp1.clear();
+	temp1.resize(tempSize1, 0.0);
+
+	ansDimentions1 = helpReduceDimentions(tempDimentions1, inputs[0]->outDimentions);
+	ansRank1 = ansDimentions1.size();
+	ansSize1 = getSize(ansDimentions1);
+	ans1.clear();
+	ans1.resize(ansSize1, 0.0);
+
+	tempDimentions2 = helpMapDimentions(dependentDimentions2);
+	tempRank2 = tempDimentions2.size();
+	tempSize2 = getSize(tempDimentions2);
+	temp2.clear();
+	temp2.resize(tempSize2, 0.0);
+
+	ansDimentions2 = helpReduceDimentions(tempDimentions2, inputs[1]->outDimentions);
+	ansRank2 = ansDimentions2.size();
+	ansSize2 = getSize(ansDimentions2);
+	ans2.clear();
+	ans2.resize(ansSize2, 0.0);
+}
+
 BasicFunction::BasicFunction(Node* a){
 	inputs.push_back(a);
 }
 
-NumObject BasicFunction::getValue(){
-	vector<NumObject> items = {inputs[0]->getValue()};
-	NumObject ans = mapVals(this, &BasicFunction::operation, items);
-	return memoize(ans);
+void BasicFunction::getValue(){
+	inputs[0]->getValue();
+
+	for(int i = 0; i < outSize; i++){
+		derivativeMemo[i] = operation(inputs[0]->derivativeMemo[i % inputs[0]->outSize]);
+	}
 }
 
+void BasicFunction::getValueDimentions(){
+	inputs[0]->getValueDimentions();
 
+	outRank = inputs[0]->outRank;
+	outDimentions = inputs[0]->outDimentions;
+	outSize = inputs[0]->outSize;
+
+	derivativeMemo.clear();
+	derivativeMemo.resize(outSize, 0.0);
+}
+
+void BasicFunction::helpDeriveDimentions(vector<vector<int>> dependentDimentions1){
+	tempDimentions1 = helpMapDimentions(dependentDimentions1);
+	tempRank1 = tempDimentions1.size();
+	tempSize1 = getSize(tempDimentions1);
+	temp1.clear();
+	temp1.resize(tempSize1, 0.0);
+
+	ansDimentions1 = helpReduceDimentions(tempDimentions1, inputs[0]->outDimentions);
+	ansRank1 = ansDimentions1.size();
+	ansSize1 = getSize(ansDimentions1);
+	ans1.clear();
+	ans1.resize(ansSize1, 0.0);
+}
+
+vector<int> helpMapDimentions(vector<vector<int>> dimentions){
+	int maxRank = 0;
+	int maxIdx = 0;
+	for(int i = 0; i < dimentions.size(); i++){
+		if(dimentions[i].size() > maxRank){
+			maxRank = dimentions[i].size();
+			maxIdx = i;
+		}
+	}
+
+	return dimentions[maxIdx];
+}
+
+vector<int> helpReduceDimentions(vector<int> a, vector<int> b){
+	if((int)(a.size()) - (int)(b.size()) <= 0){
+		return a;
+	}
+	return b;
+}
+
+int getSize(vector<int> dimentions){
+	int size = 1;
+	for(int i = 0; i < dimentions.size(); i++){
+		size *= dimentions[i];
+	}
+	return size;
+}

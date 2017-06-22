@@ -1,6 +1,5 @@
 #include "MatrixMath.hpp"
 #include "Node.hpp"
-#include "MapVals.hpp"
 #include <limits>
 
 MatMul::MatMul(Node* a, Node* b, int dimentionAVal, int dimentionBVal){
@@ -11,21 +10,56 @@ MatMul::MatMul(Node* a, Node* b, int dimentionAVal, int dimentionBVal){
 	dimentionB = dimentionBVal;
 }
 
-NumObject MatMul::getValue(){
-	NumObject a = inputs[0]->getValue();
-	NumObject b = inputs[1]->getValue();
+void MatMul::getValue(){
+	inputs[0]->getValue();
+	inputs[1]->getValue();
 
-	vector<int> newDimentions;
-	vector<int> realDimentions;
+	if(lowIdx == adjustedDimentionA){
+		for(int c = 0; c < firstProduct; c++){
+			for(int e = 0; e < secondProduct; e++){
+				for(int g = 0; g < thirdProduct; g++){
+					for(int d = 0; d < newDimentions[lowIdx]; d++){
+						for(int f = 0; f < newDimentions[highIdx]; f++){
+							double sum = 0.0;
+							for(int h = 0; h < inputs[0]->outDimentions[dimentionA]; h++){
+								sum += inputs[0]->derivativeMemo[(c * prodD + h * prodC + e * prodB + f * prodA + g) % inputs[0]->outSize] * inputs[1]->derivativeMemo[(c * prodG + d * prodF + e * prodE + h * prodA + g) / bNormalizeProdct];
+							}
+							derivativeMemo[c * prodJ + d * prodI + e * prodH + f * prodA + g] = sum;
+						}
+					}
+				}
+			}
+		}
+	}
+	else{
+		for(int c = 0; c < firstProduct; c++){
+			for(int e = 0; e < secondProduct; e++){
+				for(int g = 0; g < thirdProduct; g++){
+					for(int d = 0; d < newDimentions[lowIdx]; d++){
+						for(int f = 0; f < newDimentions[highIdx]; f++){
+							double sum = 0.0;
+							for(int h = 0; h < inputs[0]->outDimentions[dimentionA]; h++){
+								sum += inputs[0]->derivativeMemo[(c * prodD + d * prodC + e * prodB + h * prodA + g) % inputs[0]->outSize] * inputs[1]->derivativeMemo[(c * prodG + h * prodF + e * prodE + f * prodA + g) / bNormalizeProdct];
+							}
+							derivativeMemo[c * prodJ + d * prodI + e * prodH + f * prodA + g] = sum;
+						}
+					}
+				}
+			}
+		}
+	}
+}
 
-	int bNormalizeProdct = 1;
+void MatMul::getValueDimentions(){
+	inputs[0]->getValueDimentions();
+	inputs[1]->getValueDimentions();
 
-	int lowIdx;
-	int highIdx;
-	int adjustedDimentionA = dimentionA;
+	bNormalizeProdct = 1;
 
-	if(a.rank < b.rank){
-		adjustedDimentionA = dimentionA + (b.rank - a.rank);
+	adjustedDimentionA = dimentionA;
+
+	if(inputs[0]->outRank < inputs[1]->outRank){
+		adjustedDimentionA = dimentionA + (inputs[1]->outRank - inputs[0]->outRank);
 		lowIdx = min(adjustedDimentionA, dimentionB);
 		highIdx = max(adjustedDimentionA, dimentionB);	
 	}
@@ -34,111 +68,90 @@ NumObject MatMul::getValue(){
 		highIdx = max(dimentionA, dimentionB);
 	}
 
-	vector<vector<int>> dimentions = getDimentions(a.dimentions, b.dimentions, adjustedDimentionA);
+	vector<vector<int>> dimentions = getDimentions(inputs[0]->outDimentions, inputs[1]->outDimentions, adjustedDimentionA);
 	newDimentions = dimentions[0];
-	realDimentions = dimentions[1];
+
+	outDimentions = dimentions[1];
+	outRank = outDimentions.size();
+	outSize = 1;
+	for(int i = 0; i < outRank; i++){
+		outSize *= outDimentions[i];
+	}
+
+	derivativeMemo.clear();
+	derivativeMemo.resize(outSize, 0.0);
 
 
-	int firstProduct = 1;
+	firstProduct = 1;
 	for(int i = 0; i < lowIdx; i++){
 		firstProduct *= newDimentions[i];
 	}
-	int secondProduct = 1;
+	secondProduct = 1;
 	for(int i = lowIdx + 1; i < highIdx; i++){
 		secondProduct *= newDimentions[i];
 	}
-	int thirdProduct = 1;
+	thirdProduct = 1;
 	for(int i = highIdx + 1; i < newDimentions.size(); i++){
 		thirdProduct *= newDimentions[i];
 	}
 
-	if(b.rank < a.rank){
-		for(int i = newDimentions.size() - 1; i >= newDimentions.size() - (a.rank - b.rank); i--){
+	if(inputs[1]->outRank < inputs[0]->outRank){
+		for(int i = newDimentions.size() - 1; i >= newDimentions.size() - (inputs[0]->outRank - inputs[1]->outRank); i--){
 			bNormalizeProdct *= newDimentions[i];
 		}
 	}
 
-	int prodA = thirdProduct;
-	int prodB;
-	int prodC;
-	int prodD;
+	prodA = thirdProduct;
 
-	int prodE;
-	int prodF;
-	int prodG;
+	prodH = prodA * newDimentions[highIdx];
+	prodI = prodH * secondProduct;
+	prodJ = prodI * newDimentions[lowIdx];
 
 	if(lowIdx == adjustedDimentionA){
 		prodB = prodA * newDimentions[highIdx];
 		prodC = prodB * secondProduct;
-		prodD = prodC * a.dimentions[dimentionA];
+		prodD = prodC * inputs[0]->outDimentions[dimentionA];
 
-		prodE = prodA * b.dimentions[dimentionB];
+		prodE = prodA * inputs[1]->outDimentions[dimentionB];
 		prodF = prodE * secondProduct;
 		prodG = prodF * newDimentions[lowIdx];
 	}
 	else{
-		prodB = prodA * a.dimentions[dimentionA];
+		prodB = prodA * inputs[0]->outDimentions[dimentionA];
 		prodC = prodB * secondProduct;
 		prodD = prodC * newDimentions[lowIdx];
 
 		prodE = prodA * newDimentions[highIdx];
 		prodF = prodE * secondProduct;
-		prodG = prodF * b.dimentions[dimentionB];
+		prodG = prodF * inputs[1]->outDimentions[dimentionB];
 	}
-
-	NumObject ans = NumObject(realDimentions);
-	for(int c = 0; c < firstProduct; c++){
-		for(int d = 0; d < newDimentions[lowIdx]; d++){
-			for(int e = 0; e < secondProduct; e++){
-				for(int f = 0; f < newDimentions[highIdx]; f++){
-					for(int g = 0; g < thirdProduct; g++){
-						double sum = 0.0;
-						if(lowIdx == adjustedDimentionA){
-							for(int h = 0; h < a.dimentions[dimentionA]; h++){
-								sum += a.values[(c * prodD + h * prodC + e * prodB + f * prodA + g) % a.values.size()] * b.values[(c * prodG + d * prodF + e * prodE + h * prodA + g) / bNormalizeProdct];
-							}
-						}
-						else{
-							for(int h = 0; h < a.dimentions[dimentionA]; h++){
-								sum += a.values[(c * prodD + d * prodC + e * prodB + h * prodA + g) % a.values.size()] * b.values[(c * prodG + h * prodF + e * prodE + f * prodA + g) / bNormalizeProdct];
-							}
-						}
-						ans.values.push_back(sum);
-					}
-				}
-			}
-		}
-	}
-	newDimentionsMemo = newDimentions;
-	adjustedDimentionAMemo = adjustedDimentionA;
-	return memoize(ans);
 }
 
 
-vector<vector<int>> MatMul::getDimentions(vector<int> a, vector<int> b, int adjustedDimentionA){
-	vector<int> newDimentions;
+vector<vector<int>> MatMul::getDimentions(vector<int> a, vector<int> b, int adjustedDimentionAVal){
+	vector<int> newDimentionsVal;
 	vector<int> realDimentions;
 
-	if(adjustedDimentionA == dimentionB){
+	if(adjustedDimentionAVal == dimentionB){
 		if(a.size() >= b.size()){
 			for(int i = 0; i < a.size(); i++){
 				if(i != dimentionA){
-					newDimentions.push_back(a[i]);
+					newDimentionsVal.push_back(a[i]);
 					realDimentions.push_back(a[i]);
 				}
 				else{
-					newDimentions.push_back(1);
+					newDimentionsVal.push_back(1);
 				}
 			}
 		}
 		else{
 			for(int i = 0; i < b.size(); i++){
 				if(i != dimentionB){
-					newDimentions.push_back(b[i]);
+					newDimentionsVal.push_back(b[i]);
 					realDimentions.push_back(b[i]);
 				}
 				else{
-					newDimentions.push_back(1);
+					newDimentionsVal.push_back(1);
 				}
 			}
 		}
@@ -146,17 +159,17 @@ vector<vector<int>> MatMul::getDimentions(vector<int> a, vector<int> b, int adju
 	else{
 		if(a.size() >= b.size()){
 			for(int i = 0; i < a.size(); i++){
-				if(i == adjustedDimentionA){
+				if(i == adjustedDimentionAVal){
 					if(i < b.size()){
-						newDimentions.push_back(b[i]);
+						newDimentionsVal.push_back(b[i]);
 						realDimentions.push_back(b[i]);
 					}
 					else{
-						newDimentions.push_back(1);
+						newDimentionsVal.push_back(1);
 					}
 				}
 				else{
-					newDimentions.push_back(a[i]);
+					newDimentionsVal.push_back(a[i]);
 					realDimentions.push_back(a[i]);
 				}
 			}
@@ -165,367 +178,344 @@ vector<vector<int>> MatMul::getDimentions(vector<int> a, vector<int> b, int adju
 			for(int i = 0; i < b.size(); i++){
 				if(i == dimentionB){
 					if(i >= (b.size() - a.size())){
-						newDimentions.push_back(a[i - (b.size() - a.size())]);
+						newDimentionsVal.push_back(a[i - (b.size() - a.size())]);
 						realDimentions.push_back(a[i - (b.size() - a.size())]);
 					}
 					else{
-						newDimentions.push_back(1);
+						newDimentionsVal.push_back(1);
 					}
 				}
 				else{
-					newDimentions.push_back(b[i]);
+					newDimentionsVal.push_back(b[i]);
 					realDimentions.push_back(b[i]);
 				}
 			}
 		}
 	}
 
-	vector<vector<int>> returnVal = {newDimentions, realDimentions};
+	vector<vector<int>> returnVal = {newDimentionsVal, realDimentions};
 	return returnVal;
 }
 
 
-void MatMul::derive(NumObject& seed){
-	NumObject a = inputs[0]->derivativeMemo;
-	NumObject b = inputs[1]->derivativeMemo;
-
+void MatMul::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<int> newDimentions;
-		vector<int> tempBDimentions;
+		for(int i = 0; i < inputs[0]->outSize; i++){
+			ans1[i] = 0.0;
+		}
 
-		int bNormalizeProdct = 1;
-		int realDimentionsProduct = 1;
-
-		int lowIdx;
-		int highIdx;
-
-
-		if(adjustedDimentionAMemo == dimentionB){
-			int firstProduct = 1;
-			int secondProduct = 1;
-
-			if(a.rank >= b.rank){
-				for(int i = 0; i < dimentionA; i++){
-					firstProduct *= a.dimentions[i];
-				}
-				for(int i = dimentionA + 1; i < a.rank; i++){
-					secondProduct *= a.dimentions[i];
-				}
-			}
-			else{
-				for(int i = 0; i < dimentionB; i++){
-					firstProduct *= b.dimentions[i];
-				}
-				for(int i = dimentionB + 1; i < b.rank; i++){
-					secondProduct *= b.dimentions[i];
-				}
-			}
-
-			for(int i = 0; i < a.rank; i++){
-				realDimentionsProduct *= a.dimentions[i];
-			}
-
-			if(b.rank < a.rank){
-				for(int i = a.rank - 1; i >= b.rank; i--){
-					bNormalizeProdct *= a.dimentions[i];
-				}
-			}
-
-			NumObject ans = NumObject(a.dimentions);
-			for(int c = 0; c < firstProduct; c++){
-				for(int d = 0; d < a.dimentions[dimentionA]; d++){
-					for(int e = 0; e < secondProduct; e++){
-						if(ans.values.size() >= realDimentionsProduct || (c * secondProduct * a.dimentions[dimentionA] + d * secondProduct + e) % realDimentionsProduct != ans.values.size()){
-							ans.values[(c * secondProduct * a.dimentions[dimentionA] + d * secondProduct + e) % realDimentionsProduct] += seed.values[(c * secondProduct + e) % seed.values.size()] * b.values[((c * secondProduct * a.dimentions[dimentionA] + d * secondProduct + e) / bNormalizeProdct) % b.values.size()];
-						}
-						else{
-							ans.values.push_back(seed.values[(c * secondProduct + e) % seed.values.size()] * b.values[((c * secondProduct * a.dimentions[dimentionA] + d * secondProduct + e) / bNormalizeProdct) % b.values.size()]);
-						}
+		if(adjustedDimentionA == dimentionB){
+			for(int c = 0; c < firstProduct1; c++){
+				for(int d = 0; d < inputs[0]->outDimentions[dimentionA]; d++){
+					for(int e = 0; e < secondProduct1; e++){
+						ans1[(c * secondProduct1 * inputs[0]->outDimentions[dimentionA] + d * secondProduct1 + e) % inputs[0]->outSize] += seed[(c * secondProduct1 + e) % seedSize] * inputs[1]->derivativeMemo[((c * secondProduct1 * inputs[0]->outDimentions[dimentionA] + d * secondProduct1 + e) / bNormalizeProdct1) % inputs[1]->outSize];
 					}
 				}
 			}
-			inputs[0]->derive(ans);
 		}
 		else{
-			if(b.rank >= a.rank){
-				tempBDimentions = b.dimentions;
-				int temp = tempBDimentions[dimentionB];
-				tempBDimentions[dimentionB] = tempBDimentions[dimentionA + (b.rank - a.rank)];
-				tempBDimentions[dimentionA + (b.rank - a.rank)] = temp;
-			}
-			else{
-				tempBDimentions = a.dimentions;
-				if(dimentionA < b.rank){
-					tempBDimentions[dimentionB] = b.dimentions[dimentionA];
-				}
-				else{
-					tempBDimentions[dimentionB] = 1;
-				}
-			}
-
-			highIdx = max(adjustedDimentionAMemo, dimentionB);
-			lowIdx = min(adjustedDimentionAMemo, dimentionB);
-
-			vector<vector<int>> dimentions = getDimentions(newDimentionsMemo, tempBDimentions, adjustedDimentionAMemo);
-			newDimentions = dimentions[0];
-
-			int firstProduct = 1;
-			for(int i = 0; i < lowIdx; i++){
-				firstProduct *= newDimentions[i];
-			}
-			int secondProduct = 1;
-			for(int i = lowIdx + 1; i < highIdx; i++){
-				secondProduct *= newDimentions[i];
-			}
-			int thirdProduct = 1;
-			for(int i = highIdx + 1; i < newDimentions.size(); i++){
-				thirdProduct *= newDimentions[i];
-			}
-
-			if(b.rank < newDimentionsMemo.size()){
-				for(int i = newDimentions.size() - 1; i >= newDimentions.size() - (newDimentionsMemo.size() - tempBDimentions.size()); i--){
-					bNormalizeProdct *= newDimentions[i];
-				}
-			}
-
-			for(int i = 0; i < a.rank; i++){
-				realDimentionsProduct *= a.dimentions[i];
-			}
-
-			int prodA = thirdProduct;
-			int prodB;
-			int prodC;
-			int prodD;
-
-			int prodE;
-			int prodF;
-			int prodG;
-
-			int prodH = prodA * newDimentions[highIdx];
-			int prodI = prodH * secondProduct;
-			int prodJ = prodI * newDimentions[lowIdx];
-
-			if(lowIdx == adjustedDimentionAMemo){
-				prodB = prodA * newDimentions[highIdx];
-				prodC = prodB * secondProduct;
-				prodD = prodC * newDimentionsMemo[adjustedDimentionAMemo];
-
-				prodE = prodA * b.dimentions[dimentionB];
-				prodF = prodE * secondProduct;
-				prodG = prodF * newDimentionsMemo[lowIdx];
-			}
-			else{
-				prodB = prodA * newDimentionsMemo[adjustedDimentionAMemo];
-				prodC = prodB * secondProduct;
-				prodD = prodC * newDimentions[lowIdx];
-
-				prodE = prodA * newDimentionsMemo[highIdx];
-				prodF = prodE * secondProduct;
-				prodG = prodF * b.dimentions[dimentionB];
-			}
-
-			NumObject ans = NumObject(a.dimentions);
-			for(int c = 0; c < firstProduct; c++){
-				for(int d = 0; d < newDimentions[lowIdx]; d++){
-					for(int e = 0; e < secondProduct; e++){
-						for(int f = 0; f < newDimentions[highIdx]; f++){
-							for(int g = 0; g < thirdProduct; g++){
-								double sum = 0.0;
-								if(lowIdx == adjustedDimentionAMemo){
-									for(int h = 0; h < newDimentionsMemo[lowIdx]; h++){
-										sum += seed.values[(c * prodD + h * prodC + e * prodB + f * prodA + g) % seed.values.size()] * b.values[(c * prodG + h * prodF + e * prodE + d * prodA + g) / bNormalizeProdct];
+			if(lowIdx == adjustedDimentionA){
+				for(int c = 0; c < firstProduct1; c++){
+					for(int e = 0; e < secondProduct1; e++){
+						for(int g = 0; g < thirdProduct1; g++){
+							for(int d = 0; d < newDimentions1[lowIdx]; d++){
+								for(int f = 0; f < newDimentions1[highIdx]; f++){
+									double sum = 0.0;
+									for(int h = 0; h < newDimentions[lowIdx]; h++){
+										sum += seed[(c * prodD1 + h * prodC1 + e * prodB1 + f * prodA1 + g) % seedSize] * inputs[1]->derivativeMemo[(c * prodG1 + h * prodF1 + e * prodE1 + d * prodA1 + g) / bNormalizeProdct1];
 									}
-								}
-								else{
-									for(int h = 0; h < newDimentionsMemo[highIdx]; h++){
-										sum += seed.values[(c * prodD + d * prodC + e * prodB + h * prodA + g) % seed.values.size()] * b.values[(c * prodG + f * prodF + e * prodE + h * prodA + g) / bNormalizeProdct];
-									}
-								}
-								if(ans.values.size() >= realDimentionsProduct || (c * prodJ + d * prodI + e * prodH + f * prodA + g) % realDimentionsProduct != ans.values.size()){
-									ans.values[(c * prodJ + d * prodI + e * prodH + f * prodA + g) % realDimentionsProduct] += sum;
-								}
-								else{
-									ans.values.push_back(sum);
+									ans1[(c * prodJ1 + d * prodI1 + e * prodH1 + f * prodA1 + g) % inputs[0]->outSize] += sum;
 								}
 							}
 						}
 					}
 				}
 			}
-			inputs[0]->derive(ans);
+			else{
+				for(int c = 0; c < firstProduct1; c++){
+					for(int e = 0; e < secondProduct1; e++){
+						for(int g = 0; g < thirdProduct1; g++){
+							for(int d = 0; d < newDimentions1[lowIdx]; d++){
+								for(int f = 0; f < newDimentions1[highIdx]; f++){
+									double sum = 0.0;
+									for(int h = 0; h < newDimentions[highIdx]; h++){
+										sum += seed[(c * prodD1 + d * prodC1 + e * prodB1 + h * prodA1 + g) % seedSize] * inputs[1]->derivativeMemo[(c * prodG1 + f * prodF1 + e * prodE1 + h * prodA1 + g) / bNormalizeProdct1];
+									}
+									ans1[(c * prodJ1 + d * prodI1 + e * prodH1 + f * prodA1 + g) % inputs[0]->outSize] += sum;
+								}
+							}
+						}
+					}
+				}
+			}
 		}
+		inputs[0]->derive(ans1);
 	}
 
 
 	if (typeid(*inputs[1]) != typeid(Constant)){
-		vector<int> newDimentions;
-		vector<int> tempADimentions;
+		for(int i = 0; i < inputs[1]->outSize; i++){
+			ans2[i] = 0.0;
+		}
 
-		int bNormalizeProdct = 1;
-		int realDimentionsProduct = 1;
-
-		int lowIdx;
-		int highIdx;
-
-
-
-		if(adjustedDimentionAMemo == dimentionB){
-			int firstProduct = 1;
-			int secondProduct = 1;
-
-			if(b.rank >= a.rank){
-				for(int i = 0; i < dimentionB; i++){
-					firstProduct *= b.dimentions[i];
-				}
-				for(int i = dimentionB + 1; i < b.rank; i++){
-					secondProduct *= b.dimentions[i];
-				}
-			}
-			else{
-				for(int i = 0; i < dimentionA; i++){
-					firstProduct *= a.dimentions[i];
-				}
-				for(int i = dimentionA + 1; i < a.rank; i++){
-					secondProduct *= a.dimentions[i];
-				}
-			}
-
-			for(int i = 0; i < b.rank; i++){
-				realDimentionsProduct *= b.dimentions[i];
-			}
-
-			if(b.rank < a.rank){
-				for(int i = a.rank - 1; i >= b.rank; i--){
-					bNormalizeProdct *= a.dimentions[i];
-				}
-			}
-
-			cout << firstProduct << ", " << secondProduct << ", " << realDimentionsProduct << ", " << bNormalizeProdct << endl;
-
-			NumObject ans = NumObject(b.dimentions);
-			for(int c = 0; c < firstProduct; c++){
-				for(int d = 0; d < b.dimentions[dimentionB]; d++){
-					for(int e = 0; e < secondProduct; e++){
-						if(ans.values.size() >= realDimentionsProduct || ((c * secondProduct * b.dimentions[dimentionB] + d * secondProduct + e) / bNormalizeProdct) % realDimentionsProduct != ans.values.size()){
-							ans.values[((c * secondProduct * b.dimentions[dimentionB] + d * secondProduct + e) / bNormalizeProdct) % realDimentionsProduct] += seed.values[(c * secondProduct + e) % seed.values.size()] * a.values[(c * secondProduct * b.dimentions[dimentionB] + d * secondProduct + e) % a.values.size()];
-						}
-						else{
-							ans.values.push_back(seed.values[(c * secondProduct + e) % seed.values.size()] * a.values[(c * secondProduct * b.dimentions[dimentionB] + d * secondProduct + e) % a.values.size()]);
-						}
+		if(adjustedDimentionA == dimentionB){
+			for(int c = 0; c < firstProduct2; c++){
+				for(int d = 0; d < inputs[1]->outDimentions[dimentionB]; d++){
+					for(int e = 0; e < secondProduct2; e++){
+						ans2[((c * secondProduct2 * inputs[1]->outDimentions[dimentionB] + d * secondProduct2 + e) / bNormalizeProdct2) % inputs[1]->outSize] += seed[(c * secondProduct2 + e) % seedSize] * inputs[0]->derivativeMemo[(c * secondProduct2 * inputs[1]->outDimentions[dimentionB] + d * secondProduct2 + e) % inputs[0]->outSize];
 					}
 				}
 			}
-			inputs[1]->derive(ans);
 		}
 		else{
-			if(a.rank >= b.rank){
-				tempADimentions = a.dimentions;
-				int temp = tempADimentions[dimentionA];
-				tempADimentions[dimentionA] = tempADimentions[dimentionB];
-				tempADimentions[dimentionB] = temp;
-			}
-			else{
-				tempADimentions = b.dimentions;
-				if(dimentionB < a.rank && dimentionB >= (b.rank - a.rank)){
-					tempADimentions[adjustedDimentionAMemo] = a.dimentions[dimentionB];
-				}
-				else{
-					tempADimentions[adjustedDimentionAMemo] = 1;
-				}
-			}
-
-			lowIdx = min(adjustedDimentionAMemo, dimentionB);
-			highIdx = max(adjustedDimentionAMemo, dimentionB);
-
-			vector<vector<int>> dimentions = getDimentions(tempADimentions, newDimentionsMemo, adjustedDimentionAMemo);
-			newDimentions = dimentions[0];
-
-			int firstProduct = 1;
-			for(int i = 0; i < lowIdx; i++){
-				firstProduct *= newDimentions[i];
-			}
-			int secondProduct = 1;
-			for(int i = lowIdx + 1; i < highIdx; i++){
-				secondProduct *= newDimentions[i];
-			}
-			int thirdProduct = 1;
-			for(int i = highIdx + 1; i < newDimentions.size(); i++){
-				thirdProduct *= newDimentions[i];
-			}
-
-			if(newDimentionsMemo.size() < a.rank){
-				for(int i = newDimentions.size() - 1; i >= newDimentions.size() - (tempADimentions.size() - newDimentionsMemo.size()); i--){
-					bNormalizeProdct *= newDimentions[i];
-				}
-			}
-
-			for(int i = 0; i < b.rank; i++){
-				realDimentionsProduct *= b.dimentions[i];
-			}
-
-			int prodA = thirdProduct;
-			int prodB;
-			int prodC;
-			int prodD;
-
-			int prodE;
-			int prodF;
-			int prodG;
-
-			int prodH = prodA * newDimentions[highIdx];
-			int prodI = prodH * secondProduct;
-			int prodJ = prodI * newDimentions[lowIdx];
-
-			if(lowIdx == adjustedDimentionAMemo){
-				prodB = prodA * newDimentionsMemo[dimentionB];
-				prodC = prodB * secondProduct;
-				prodD = prodC * a.dimentions[dimentionA];
-
-				prodE = prodA * newDimentionsMemo[dimentionB];
-				prodF = prodE * secondProduct;
-				prodG = prodF * newDimentions[lowIdx];
-			}
-			else{
-				prodB = prodA * a.dimentions[dimentionA];
-				prodC = prodB * secondProduct;
-				prodD = prodC * newDimentionsMemo[dimentionB];
-
-				prodE = prodA * newDimentions[highIdx];
-				prodF = prodE * secondProduct;
-				prodG = prodF * newDimentionsMemo[dimentionB];
-			}
-
-			NumObject ans = NumObject(b.dimentions);
-			for(int c = 0; c < firstProduct; c++){
-				for(int d = 0; d < newDimentions[lowIdx]; d++){
-					for(int e = 0; e < secondProduct; e++){
-						for(int f = 0; f < newDimentions[highIdx]; f++){
-							for(int g = 0; g < thirdProduct; g++){
-								double sum = 0.0;
-								if(lowIdx == adjustedDimentionAMemo){
-									for(int h = 0; h < newDimentionsMemo[highIdx]; h++){
-										sum += a.values[(c * prodD + f * prodC + e * prodB + h * prodA + g) % a.values.size()] * seed.values[((c * prodG + d * prodF + e * prodE + h * prodA + g) / bNormalizeProdct) % seed.values.size()];
+			if(lowIdx == adjustedDimentionA){
+				for(int c = 0; c < firstProduct2; c++){
+					for(int e = 0; e < secondProduct2; e++){
+						for(int g = 0; g < thirdProduct2; g++){
+							for(int d = 0; d < newDimentions2[lowIdx]; d++){
+								for(int f = 0; f < newDimentions2[highIdx]; f++){
+									double sum = 0.0;
+									for(int h = 0; h < newDimentions[highIdx]; h++){
+										sum += inputs[0]->derivativeMemo[(c * prodD2 + f * prodC2 + e * prodB2 + h * prodA2 + g) % inputs[0]->outSize] * seed[((c * prodG2 + d * prodF2 + e * prodE2 + h * prodA2 + g) / bNormalizeProdct2) % seedSize];
 									}
-								}
-								else{
-									for(int h = 0; h < newDimentionsMemo[lowIdx]; h++){
-										sum += a.values[(c * prodD + h * prodC + e * prodB + d * prodA + g) % a.values.size()] * seed.values[((c * prodG + h * prodF + e * prodE + f * prodA + g) / bNormalizeProdct) % seed.values.size()];
-									}
-								}
-								if(ans.values.size() >= realDimentionsProduct || (c * prodJ + d * prodI + e * prodH + f * prodA + g) % realDimentionsProduct != ans.values.size()){
-									ans.values[(c * prodJ + d * prodI + e * prodH + f * prodA + g) % realDimentionsProduct] += sum;
-								}
-								else{
-									ans.values.push_back(sum);
+									ans2[(c * prodJ2 + d * prodI2 + e * prodH2 + f * prodA2 + g) % inputs[1]->outSize] += sum;
 								}
 							}
 						}
 					}
 				}
 			}
-
-			inputs[1]->derive(ans);
+			else{
+				for(int c = 0; c < firstProduct2; c++){
+					for(int e = 0; e < secondProduct2; e++){
+						for(int g = 0; g < thirdProduct2; g++){
+							for(int d = 0; d < newDimentions2[lowIdx]; d++){
+								for(int f = 0; f < newDimentions2[highIdx]; f++){
+									double sum = 0.0;
+									for(int h = 0; h < newDimentions[lowIdx]; h++){
+										sum += inputs[0]->derivativeMemo[(c * prodD2 + h * prodC2 + e * prodB2 + d * prodA2 + g) % inputs[0]->outSize] * seed[((c * prodG2 + h * prodF2 + e * prodE2 + f * prodA2 + g) / bNormalizeProdct2) % seedSize];
+									}
+									ans2[(c * prodJ2 + d * prodI2 + e * prodH2 + f * prodA2 + g) % inputs[1]->outSize] += sum;
+								}
+							}
+						}
+					}
+				}
+			}
 		}
+		inputs[1]->derive(ans2);
+	}
+}
+
+void MatMul::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
+
+
+	bNormalizeProdct1 = 1;
+
+	ans1.clear();
+	ans1.resize(inputs[0]->outSize, 0.0);
+
+	if(adjustedDimentionA == dimentionB){
+		firstProduct1 = 1;
+		secondProduct1 = 1;
+
+		if(inputs[0]->outRank >= inputs[1]->outRank){
+			for(int i = 0; i < dimentionA; i++){
+				firstProduct1 *= inputs[0]->outDimentions[i];
+			}
+			for(int i = dimentionA + 1; i < inputs[0]->outRank; i++){
+				secondProduct1 *= inputs[0]->outDimentions[i];
+			}
+		}
+		else{
+			for(int i = 0; i < dimentionB; i++){
+				firstProduct1 *= inputs[1]->outDimentions[i];
+			}
+			for(int i = dimentionB + 1; i < inputs[1]->outRank; i++){
+				secondProduct1 *= inputs[1]->outDimentions[i];
+			}
+		}
+
+		if(inputs[1]->outRank < inputs[0]->outRank){
+			for(int i = inputs[0]->outRank - 1; i >= inputs[1]->outRank; i--){
+				bNormalizeProdct1 *= inputs[0]->outDimentions[i];
+			}
+		}
+
+		inputs[0]->deriveDimentions(inputs[0]->outDimentions);
+	}
+	else{
+		if(inputs[1]->outRank >= inputs[0]->outRank){
+			tempBDimentions1 = inputs[1]->outDimentions;
+			int temp = tempBDimentions1[dimentionB];
+			tempBDimentions1[dimentionB] = tempBDimentions1[dimentionA + (inputs[1]->outRank - inputs[0]->outRank)];
+			tempBDimentions1[dimentionA + (inputs[1]->outRank - inputs[0]->outRank)] = temp;
+		}
+		else{
+			tempBDimentions1 = inputs[0]->outDimentions;
+			if(dimentionA < inputs[1]->outRank){
+				tempBDimentions1[dimentionB] = inputs[1]->outDimentions[dimentionA];
+			}
+			else{
+				tempBDimentions1[dimentionB] = 1;
+			}
+		}
+
+		vector<vector<int>> dimentions = getDimentions(newDimentions, tempBDimentions1, adjustedDimentionA);
+		newDimentions1 = dimentions[0];
+
+		firstProduct1 = 1;
+		for(int i = 0; i < lowIdx; i++){
+			firstProduct1 *= newDimentions1[i];
+		}
+		secondProduct1 = 1;
+		for(int i = lowIdx + 1; i < highIdx; i++){
+			secondProduct1 *= newDimentions1[i];
+		}
+		thirdProduct1 = 1;
+		for(int i = highIdx + 1; i < newDimentions1.size(); i++){
+			thirdProduct1 *= newDimentions1[i];
+		}
+
+		if(inputs[1]->outRank < newDimentions.size()){
+			for(int i = newDimentions1.size() - 1; i >= newDimentions1.size() - (newDimentions.size() - tempBDimentions1.size()); i--){
+				bNormalizeProdct1 *= newDimentions1[i];
+			}
+		}
+
+		prodA1 = thirdProduct1;
+
+		prodH1 = prodA1 * newDimentions1[highIdx];
+		prodI1 = prodH1 * secondProduct1;
+		prodJ1 = prodI1 * newDimentions1[lowIdx];
+
+		if(lowIdx == adjustedDimentionA){
+			prodB1 = prodA1 * newDimentions1[highIdx];
+			prodC1 = prodB1 * secondProduct1;
+			prodD1 = prodC1 * newDimentions[adjustedDimentionA];
+
+			prodE1 = prodA1 * inputs[1]->outDimentions[dimentionB];
+			prodF1 = prodE1 * secondProduct1;
+			prodG1 = prodF1 * newDimentions[lowIdx];
+		}
+		else{
+			prodB1 = prodA1 * newDimentions[adjustedDimentionA];
+			prodC1 = prodB1 * secondProduct1;
+			prodD1 = prodC1 * newDimentions1[lowIdx];
+
+			prodE1 = prodA1 * newDimentions[highIdx];
+			prodF1 = prodE1 * secondProduct1;
+			prodG1 = prodF1 * inputs[1]->outDimentions[dimentionB];
+		}
+
+		inputs[0]->deriveDimentions(inputs[0]->outDimentions);
+	}
+
+	bNormalizeProdct2 = 1;
+
+	ans2.clear();
+	ans2.resize(inputs[1]->outSize, 0.0);
+
+	if(adjustedDimentionA == dimentionB){
+		firstProduct2 = 1;
+		secondProduct2 = 1;
+
+		if(inputs[1]->outRank >= inputs[0]->outRank){
+			for(int i = 0; i < dimentionB; i++){
+				firstProduct2 *= inputs[1]->outDimentions[i];
+			}
+			for(int i = dimentionB + 1; i < inputs[1]->outRank; i++){
+				secondProduct2 *= inputs[1]->outDimentions[i];
+			}
+		}
+		else{
+			for(int i = 0; i < dimentionA; i++){
+				firstProduct2 *= inputs[0]->outDimentions[i];
+			}
+			for(int i = dimentionA + 1; i < inputs[0]->outRank; i++){
+				secondProduct2 *= inputs[0]->outDimentions[i];
+			}
+		}
+
+		if(inputs[1]->outRank < inputs[0]->outRank){
+			for(int i = inputs[0]->outRank - 1; i >= inputs[1]->outRank; i--){
+				bNormalizeProdct2 *= inputs[0]->outDimentions[i];
+			}
+		}
+
+		inputs[1]->deriveDimentions(inputs[1]->outDimentions);
+	}
+	else{
+		if(inputs[0]->outRank >= inputs[1]->outRank){
+			tempADimentions2 = inputs[0]->outDimentions;
+			int temp = tempADimentions2[dimentionA];
+			tempADimentions2[dimentionA] = tempADimentions2[dimentionB];
+			tempADimentions2[dimentionB] = temp;
+		}
+		else{
+			tempADimentions2 = inputs[1]->outDimentions;
+			if(dimentionB < inputs[0]->outRank && dimentionB >= (inputs[1]->outRank - inputs[0]->outRank)){
+				tempADimentions2[adjustedDimentionA] = inputs[0]->outDimentions[dimentionB];
+			}
+			else{
+				tempADimentions2[adjustedDimentionA] = 1;
+			}
+		}
+
+		vector<vector<int>> dimentions = getDimentions(tempADimentions2, newDimentions, adjustedDimentionA);
+		newDimentions2 = dimentions[0];
+
+		firstProduct2 = 1;
+		for(int i = 0; i < lowIdx; i++){
+			firstProduct2 *= newDimentions2[i];
+		}
+		secondProduct2 = 1;
+		for(int i = lowIdx + 1; i < highIdx; i++){
+			secondProduct2 *= newDimentions2[i];
+		}
+		thirdProduct2 = 1;
+		for(int i = highIdx + 1; i < newDimentions2.size(); i++){
+			thirdProduct2 *= newDimentions2[i];
+		}
+
+		if(newDimentions.size() < inputs[0]->outRank){
+			for(int i = newDimentions2.size() - 1; i >= newDimentions2.size() - (tempADimentions2.size() - newDimentions.size()); i--){
+				bNormalizeProdct2 *= newDimentions2[i];
+			}
+		}
+
+		prodA2 = thirdProduct2;
+
+		prodH2 = prodA2 * newDimentions2[highIdx];
+		prodI2 = prodH2 * secondProduct2;
+		prodJ2 = prodI2 * newDimentions2[lowIdx];
+
+		if(lowIdx == adjustedDimentionA){
+			prodB2 = prodA2 * newDimentions[dimentionB];
+			prodC2 = prodB2 * secondProduct2;
+			prodD2 = prodC2 * inputs[0]->outDimentions[dimentionA];
+
+			prodE2 = prodA2 * newDimentions[dimentionB];
+			prodF2 = prodE2 * secondProduct2;
+			prodG2 = prodF2 * newDimentions2[lowIdx];
+		}
+		else{
+			prodB2 = prodA2 * inputs[0]->outDimentions[dimentionA];
+			prodC2 = prodB2 * secondProduct2;
+			prodD2 = prodC2 * newDimentions[dimentionB];
+
+			prodE2 = prodA2 * newDimentions2[highIdx];
+			prodF2 = prodE2 * secondProduct2;
+			prodG2 = prodF2 * newDimentions[dimentionB];
+		}
+
+		inputs[1]->deriveDimentions(inputs[1]->outDimentions);
 	}
 }
 
@@ -541,43 +531,100 @@ Sum::Sum(Node* a, int dimentionVal){
 	name = "Sum";
 }
 
-NumObject Sum::getValue(){
-	NumObject a = inputs[0]->getValue();
-
-	vector<int> newDimentions;
-	for(int i = 0; i < a.rank; i++){
-		if (i != dimention){
-			newDimentions.push_back(a.dimentions[i]);
-		}
-	}
-	NumObject answer = NumObject(newDimentions, 0.0);
-
-	int preSum = 1;
-	for(int i = 0; i < dimention; i++){
-		preSum *= a.dimentions[i];
-	}
-	int postSum = a.values.size() / (preSum * a.dimentions[dimention]);
+void Sum::getValue(){
+	inputs[0]->getValue();
 
 	for(int i = 0; i < preSum; i++){
-		for(int x = 0; x < a.dimentions[dimention]; x++){
-			for(int z = 0; z < postSum; z++){
-				answer.values[i * postSum + z] += a.values[i * postSum * a.dimentions[dimention] + postSum * x + z];
+		for(int z = 0; z < postSum; z++){
+			double sum = 0.0;
+			for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
+				sum += inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + postSum * x + z];
 			}
+			derivativeMemo[i * postSum + z] = sum;
 		}
 	}
-
-	return memoize(answer);
 }
 
 
-void Sum::derive(NumObject& seed){
-	NumObject a = inputs[0]->derivativeMemo;
-	if(seed.rank < (a.rank - dimention)){
+void Sum::getValueDimentions(){
+	inputs[0]->getValueDimentions();
+
+	outDimentions.clear();
+	for(int i = 0; i < inputs[0]->outRank; i++){
+		if (i != dimention){
+			outDimentions.push_back(inputs[0]->outDimentions[i]);
+		}
+	}
+	outRank = inputs[0]->outRank - 1;
+	outSize = inputs[0]->outSize / inputs[0]->outDimentions[dimention];
+
+	preSum = 1;
+	for(int i = 0; i < dimention; i++){
+		preSum *= outDimentions[i];
+	}
+	postSum = outSize / preSum;
+
+	derivativeMemo.clear();
+	derivativeMemo.resize(outSize, 0.0);
+}
+
+void Sum::derive(vector<double>& seed){
+	if(seedRank < (inputs[0]->outRank - dimention)){
 		inputs[0]->derive(seed);
 	}
 	else{
-		NumObject temp1 = expandDerivative(seed, dimention - (a.rank - seed.rank) + 1, a.dimentions[dimention]);
-		inputs[0]->derive(temp1);
+		for(int i = 0; i < preSum; i++){
+			for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
+				for(int z = 0; z < postSum; z++){
+					ans[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] = seed[(i * postSum + z) % seedSize];
+				}
+			}
+		}
+		inputs[0]->derive(ans);
+	}
+}
+
+void Sum::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
+
+	if(seedRank < (inputs[0]->outRank - dimention)){
+		inputs[0]->deriveDimentions(seedDimentions);
+	}
+	else{
+		adjustedDimention = dimention - (inputs[0]->outRank - seedRank) + 1;
+
+		ansDimentions.clear();
+		for(int i = 0; i < seedRank; i++){
+			if(i == adjustedDimention){
+				ansDimentions.push_back(inputs[0]->outDimentions[dimention]);
+			}
+			ansDimentions.push_back(seedDimentions[i]);
+		}
+		if(adjustedDimention == seedRank){
+			ansDimentions.push_back(inputs[0]->outDimentions[dimention]);
+		}
+
+		ansRank = ansDimentions.size();
+		ansSize = 1;
+		for(int i = 0; i < ansRank; i++){
+			ansSize *= ansDimentions[i];
+		}
+
+		ans.clear();
+		ans.resize(ansSize, 0.0);
+
+		preSum1 = 1;
+		for(int i = 0; i < adjustedDimention; i++){
+			preSum1 *= seedDimentions[i];
+		}
+		postSum1 = seedSize / preSum1;
+
+		inputs[0]->deriveDimentions(ansDimentions);
 	}
 }
 
@@ -585,95 +632,89 @@ string Sum::describe(){
 	return name + "(" + inputs[0]->describe() + ", " + to_string(dimention) + ")";
 }
 
-Mean::Mean(Node* a, int dimentionVal){
-	inputs.push_back(a);
-	dimention = dimentionVal;
-	name = "Mean";
-}
-
-NumObject Mean::getValue(){
-	NumObject a = inputs[0]->getValue();
-
-	vector<int> newDimentions;
-	for(int i = 0; i < a.rank; i++){
-		if (i != dimention){
-			newDimentions.push_back(a.dimentions[i]);
-		}
-	}
-	NumObject answer = NumObject(newDimentions, 0.0);
-
-	int preSum = 1;
-	for(int i = 0; i < dimention; i++){
-		preSum *= a.dimentions[i];
-	}
-	int postSum = a.values.size() / (preSum * a.dimentions[dimention]);
+void Mean::getValue(){
+	inputs[0]->getValue();
 
 	for(int i = 0; i < preSum; i++){
-		for(int x = 0; x < a.dimentions[dimention]; x++){
-			for(int z = 0; z < postSum; z++){
-				answer.values[i * postSum + z] += a.values[i * postSum * a.dimentions[dimention] + postSum * x + z];
+		for(int z = 0; z < postSum; z++){
+			double sum = 0.0;
+			for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
+				sum += inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + postSum * x + z];
 			}
+			derivativeMemo[i * postSum + z] = sum / inputs[0]->outDimentions[dimention];
 		}
 	}
-
-	vector<NumObject> items = {answer, NumObject(a.dimentions[dimention])};
-
-	NumObject ans2 = mapVals(this, &Mean::operation, items);
-	return memoize(ans2);
 }
 
-double Mean::operation(vector<double>& a){
-	return a[0] / a[1];
-}
+void Mean::derive(vector<double>& seed){
+	for(int i = 0; i < seedSize; i++){
+		temp[i] = seed[i] / inputs[0]->outDimentions[dimention];
+	}
 
-void Mean::derive(NumObject& seed){
-	NumObject a = inputs[0]->derivativeMemo;
-
-	vector<NumObject> items = {seed, NumObject(a.dimentions[dimention])};
-	NumObject eval1 = mapVals(this, &Mean::operation, items);
-
-	if(eval1.rank < (a.rank - dimention)){
-		inputs[0]->derive(eval1);
+	if(seedRank < (inputs[0]->outRank - dimention)){
+		inputs[0]->derive(temp);
 	}
 	else{
-		NumObject temp1 = expandDerivative(eval1, dimention - (a.rank - eval1.rank) + 1, a.dimentions[dimention]);
-		inputs[0]->derive(temp1);
+		for(int i = 0; i < preSum; i++){
+			for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
+				for(int z = 0; z < postSum; z++){
+					ans[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] = temp[(i * postSum + z) % seedSize];
+				}
+			}
+		}
+		inputs[0]->derive(ans);
+	}
+}
+
+void Mean::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
+
+	temp.clear();
+	temp.resize(seedSize, 0.0);
+
+	if(seedRank < (inputs[0]->outRank - dimention)){
+		inputs[0]->deriveDimentions(seedDimentions);
+	}
+	else{
+		adjustedDimention = dimention - (inputs[0]->outRank - seedRank) + 1;
+
+		ansDimentions.clear();
+		for(int i = 0; i < seedRank; i++){
+			if(i == adjustedDimention){
+				ansDimentions.push_back(inputs[0]->outDimentions[dimention]);
+			}
+			ansDimentions.push_back(seedDimentions[i]);
+		}
+		if(adjustedDimention == seedRank){
+			ansDimentions.push_back(inputs[0]->outDimentions[dimention]);
+		}
+
+		ansRank = ansDimentions.size();
+		ansSize = 1;
+		for(int i = 0; i < ansRank; i++){
+			ansSize *= ansDimentions[i];
+		}
+
+		ans.clear();
+		ans.resize(ansSize, 0.0);
+
+		preSum1 = 1;
+		for(int i = 0; i < adjustedDimention; i++){
+			preSum1 *= seedDimentions[i];
+		}
+		postSum1 = seedSize / preSum1;
+
+		inputs[0]->deriveDimentions(ansDimentions);
 	}
 }
 
 string Mean::describe(){
 	return name + "(" + inputs[0]->describe() + ", " + to_string(dimention) + ")";
-}
-
-NumObject expandDerivative(NumObject& a, int dimention, int size){
-	vector<int> newDimentions;
-	for(int i = 0; i < a.rank; i++){
-		if(i == dimention){
-			newDimentions.push_back(size);
-		}
-		newDimentions.push_back(a.dimentions[i]);
-	}
-	if(dimention == a.rank){
-		newDimentions.push_back(size);
-	}
-
-	NumObject answer = NumObject(newDimentions);
-
-	int preSum = 1;
-	for(int i = 0; i < dimention; i++){
-		preSum *= a.dimentions[i];
-	}
-	int postSum = a.values.size() / preSum;
-
-	for(int i = 0; i < preSum; i++){
-		for(int x = 0; x < size; x++){
-			for(int z = 0; z < postSum; z++){
-				answer.values.push_back(a.values[i * postSum + z]);
-			}
-		}
-	}
-
-	return answer;
 }
 
 
@@ -683,73 +724,108 @@ Trans::Trans(Node* a, vector<int> permutations){
 	name = "Trans";
 }
 
-NumObject Trans::getValue(){
-	NumObject a = inputs[0]->getValue();
+void Trans::getValue(){
+	inputs[0]->getValue();
 
-	vector<int> newDimentions;
-	newDimentions.resize(a.rank, 0);
-	for(int i = 0; i < a.rank; i++){
-		newDimentions[i] = a.dimentions[perm[i]];
-	}
+	for(int i = 0; i < inputs[0]->outSize; i++){
+		int totalSize = inputs[0]->outSize;
+		int newNum = 0;
 
-	NumObject ans = NumObject(newDimentions, 0.0);
-	for(int i = 0; i < a.values.size(); i++){
-		ans.values[flipIdx(i, a, ans)] = a.values[i];
+		for(int x = 0; x < inputs[0]->outRank; x++){
+			idx[x] = (i % totalSize) / (totalSize / inputs[0]->outDimentions[x]);
+			totalSize /= inputs[0]->outDimentions[x];
+		}
+
+		totalSize = outSize;
+		for(int x = 0; x < outRank; x++){
+			totalSize /= outDimentions[x];
+			newNum += totalSize * idx[perm[x]];
+		}
+
+		derivativeMemo[newNum] = inputs[0]->derivativeMemo[i];
 	}
-	return memoize(ans);
 }
 
-int Trans::flipIdx(int num, NumObject& a, NumObject& b){
-	int totalSize = a.values.size();
-	vector<int> idx;
-	for(int i = 0; i < a.rank; i++){
-		idx.push_back((num % totalSize) / (totalSize / a.dimentions[i]));
-		totalSize /= a.dimentions[i];
-	}
+void Trans::getValueDimentions(){
+	inputs[0]->getValueDimentions();
 
-	totalSize = b.values.size();
-	int newNum = 0;
-	for(int i = 0; i < b.rank; i++){
-		totalSize /= b.dimentions[i];
-		newNum += totalSize * idx[perm[i]];
+	outDimentions.clear();
+	outDimentions.resize(inputs[0]->outRank, 0);
+	for(int i = 0; i < inputs[0]->outRank; i++){
+		outDimentions[i] = inputs[0]->outDimentions[perm[i]];
 	}
+	outRank = inputs[0]->outRank;
+	outSize = inputs[0]->outSize;
 
-	return newNum;
+	idx.clear();
+	idx.resize(inputs[0]->outRank, 0);
+	derivativeMemo.clear();
+	derivativeMemo.resize(outSize, 0.0);
 }
 
-int Trans::flipIdxDerive(int num, NumObject& a, NumObject& b){
-	int totalSize = a.values.size();
-	vector<int> idx;
-	for(int i = 0; i < a.rank; i++){
-		idx.push_back((num % totalSize) / (totalSize / a.dimentions[i]));
-		totalSize /= a.dimentions[i];
-	}
+void Trans::derive(vector<double>& seed){
+	if (isInternalized == true){
+		for(int i = 0; i < seedSize; i++){
 
-	vector<int> newIdx;
-	newIdx.resize(idx.size(), 0);
-	for(int i = 0; i < idx.size(); i++){
-		newIdx[perm[i]] = idx[i];
-	}
+			int totalSize = seedSize;
+			for(int x = 0; x < seedRank; x++){
+				idx1[x] = (i % totalSize) / (totalSize / seedDimentions[x]);
+				totalSize /= seedDimentions[x];
+			}
 
-	totalSize = b.values.size();
-	int newNum = 0;
-	for(int i = 0; i < b.rank; i++){
-		totalSize /= b.dimentions[i];
-		newNum += totalSize * newIdx[i];
-	}
+			for(int x = 0; x < seedRank; x++){
+				newIdx1[perm[x]] = idx1[x];
+			}
 
-	return newNum;
+			totalSize = ansSize;
+			int newNum = 0;
+			for(int x = 0; x < ansRank; x++){
+				totalSize /= ansDimentions[x];
+				newNum += totalSize * newIdx1[x];
+			}
+
+			ans[newNum] = seed[i];
+		}
+	}
+	else{
+		for(int i = 0; i < outSize; i++){
+			int totalSize = outSize;
+			for(int x = 0; x < outRank; x++){
+				idx1[x] = (i % totalSize) / (totalSize / outDimentions[x]);
+				totalSize /= outDimentions[x];
+			}
+
+			for(int i = 0; i < outRank; i++){
+				newIdx1[perm[i]] = idx1[i];
+			}
+
+			totalSize = ansSize;
+			int newNum = 0;
+			for(int i = 0; i < outRank; i++){
+				totalSize /= outDimentions[i];
+				newNum += totalSize * newIdx1[i];
+			}
+
+			ans[newNum] = seed[i % seedSize];
+		}
+	}
+	inputs[0]->derive(ans);
 }
 
-void Trans::derive(NumObject& seed){
-	NumObject a = inputs[0]->derivativeMemo;
+void Trans::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
 
-	bool isInternalized = true;
+	isInternalized = true;
 
-	for(int i = 0; i < seed.rank; i++){
+	for(int i = 0; i < seedRank; i++){
 		bool found = false;
-		for(int x = 0; x < seed.rank; x++){
-			if(i == perm[a.rank - seed.rank + x]){
+		for(int x = 0; x < seedRank; x++){
+			if(i == perm[inputs[0]->outRank - seedRank + x]){
 				found = true;
 				break;
 			}
@@ -760,25 +836,33 @@ void Trans::derive(NumObject& seed){
 		}
 	}
 
-	if (isInternalized == true){
-		vector<int> newDimentions;
-		for(int i = 0; i < seed.rank; i++){
-			newDimentions.push_back(a.dimentions[a.rank - seed.rank + i]);
-		}
+	idx1.clear();
+	idx1.resize(seedRank, 0);
+	newIdx1.clear();
+	newIdx1.resize(seedRank, 0);
 
-		NumObject ans = NumObject(newDimentions, 0.0);
-		for(int i = 0; i < seed.values.size(); i++){
-			ans.values[flipIdxDerive(i, seed, ans)] = seed.values[i];
+	if (isInternalized == true){
+		ansSize = 1;
+		ansDimentions.clear();
+		for(int i = 0; i < seedRank; i++){
+			ansDimentions.push_back(inputs[0]->outDimentions[inputs[0]->outRank - seedRank + i]);
+			ansSize *= ansDimentions[i];
 		}
-		inputs[0]->derive(ans);
+		ansRank = seedRank;
+		ans.clear();
+		ans.resize(ansSize, 0.0);
+
+		inputs[0]->deriveDimentions(ansDimentions);
 	}
 	else{
-		NumObject ans = NumObject(a.dimentions, 0.0);
-		for(int i = 0; i < derivativeMemo.values.size(); i++){
-			ans.values[flipIdxDerive(i, derivativeMemo, ans)] = seed.values[i % seed.values.size()];
-		}
-		inputs[0]->derive(ans);
+		idx1.clear();
+		idx1.resize(outRank, 0);
+		newIdx1.clear();
+		newIdx1.resize(outRank, 0);
+
+		inputs[0]->deriveDimentions(inputs[0]->outDimentions);
 	}
+
 }
 
 string Trans::describe(){
@@ -800,74 +884,74 @@ Max::Max(Node* a, int dimentionVal){
 	name = "Max";
 }
 
-NumObject Max::getValue(){
-	NumObject a = inputs[0]->getValue();
+void Max::getValue(){
+	inputs[0]->getValue();
 
-	vector<int> newDimentions;
-	for(int i = 0; i < a.rank; i++){
-		if (i != dimention){
-			newDimentions.push_back(a.dimentions[i]);
-		}
-	}
 	double lowVal = -numeric_limits<double>::infinity();
-	NumObject answer = NumObject(newDimentions, lowVal);
-	idx = NumObject(newDimentions, 0.0);
-
-	int preSum = 1;
-	for(int i = 0; i < dimention; i++){
-		preSum *= a.dimentions[i];
+	for(int i = 0; i < outSize; i++){
+		derivativeMemo[i] = lowVal;
 	}
-	int postSum = a.values.size() / (preSum * a.dimentions[dimention]);
 
 	for(int i = 0; i < preSum; i++){
-		for(int x = 0; x < a.dimentions[dimention]; x++){
+		for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
 			for(int z = 0; z < postSum; z++){
-				if(a.values[i * postSum * a.dimentions[dimention] + postSum * x + z] > answer.values[i * postSum + z]){
-					answer.values[i * postSum + z] = a.values[i * postSum * a.dimentions[dimention] + postSum * x + z];
-					idx.values[i * postSum + z] = x;
+				if(inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + postSum * x + z] > derivativeMemo[i * postSum + z]){
+					derivativeMemo[i * postSum + z] = inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + postSum * x + z];
+					idx[i * postSum + z] = x;
 				}
 			}
 		}
 	}
-	return memoize(answer);
 }
 
-void Max::derive(NumObject& seed){
-	NumObject a = inputs[0]->derivativeMemo;
-	NumObject ans = NumObject(a.dimentions);
+void Max::getValueDimentions(){
+	inputs[0]->getValueDimentions();
 
-	int preSum = 1;
-	for(int i = 0; i < dimention; i++){
-		preSum *= a.dimentions[i];
+	outDimentions.clear();
+	for(int i = 0; i < inputs[0]->outRank; i++){
+		if(i != dimention){
+			outDimentions.push_back(inputs[0]->outDimentions[i]);
+		}
 	}
-	int postSum = a.values.size() / (preSum * a.dimentions[dimention]);
+	outRank = inputs[0]->outRank - 1;
+	outSize = inputs[0]->outSize / inputs[0]->outDimentions[dimention];
 
+	double lowVal = -numeric_limits<double>::infinity();
+	derivativeMemo.clear();
+	derivativeMemo.resize(outSize, lowVal);
+	idx.clear();
+	idx.resize(outSize, 0);
 
-	if(seed.rank < (a.rank - dimention)){
+	preSum = 1;
+	for(int i = 0; i < dimention; i++){
+		preSum *= inputs[0]->outDimentions[i];
+	}
+	postSum = outSize / preSum;
+}
+
+void Max::derive(vector<double>& seed){
+	if(seedRank < (inputs[0]->outRank - dimention)){
 		for(int i = 0; i < preSum; i++){
-			for(int x = 0; x < a.dimentions[dimention]; x++){
+			for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
 				for(int z = 0; z < postSum; z++){
-					if(idx.values[i * postSum + z] == x){
-						ans.values.push_back(seed.values[(i * postSum + z) % seed.values.size()]);
-					}
-					else{
-						ans.values.push_back(0.0);
-					}
+					ans[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] = seed[(i * postSum + z) % seedSize] * (int)(idx[i * postSum + z] == x);
 				}
 			}
 		}
 	}
 	else{
-		NumObject temp1 = expandDerivative(seed, dimention - (a.rank - seed.rank) + 1, a.dimentions[dimention]);
+		for(int i = 0; i < preSum1; i++){
+			for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
+				for(int z = 0; z < postSum1; z++){
+					temp1[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] = seed[i * postSum + z];
+				}
+			}
+		}
+
 		for(int i = 0; i < preSum; i++){
-			for(int x = 0; x < a.dimentions[dimention]; x++){
+			for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
 				for(int z = 0; z < postSum; z++){
-					if(idx.values[i * postSum + z] == x){
-						ans.values.push_back(temp1.values[(i * postSum * a.dimentions[dimention] + postSum * x + z) % temp1.values.size()]);
-					}
-					else{
-						ans.values.push_back(0.0);
-					}
+					ans[i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z] = temp1[(i * postSum * inputs[0]->outDimentions[dimention] + x * postSum + z) % tempSize1] * (int)(idx[i * postSum + z] == x);
 				}
 			}
 		}
@@ -880,36 +964,94 @@ string Max::describe(){
 	return name + "(" + inputs[0]->describe() + ", " + to_string(dimention) + ")";
 }
 
-NumObject Min::getValue(){
-	NumObject a = inputs[0]->getValue();
+void Max::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentions.size();
+	seedSize = 1;
+	for(int i = 0; i < seedRank; i++){
+		seedSize *= seedDimentions[i];
+	}
 
-	vector<int> newDimentions;
-	for(int i = 0; i < a.rank; i++){
-		if (i != dimention){
-			newDimentions.push_back(a.dimentions[i]);
+	ansDimentions = inputs[0]->outDimentions;
+	ansRank = inputs[0]->outRank;
+	ansSize = inputs[0]->outSize;
+	ans.clear();
+	ans.resize(ansSize, 0.0);
+
+	adjustedDimention = dimention - (inputs[0]->outRank - seedRank) + 1;
+
+	tempDimentions1.clear();
+	for(int i = 0; i < seedRank; i++){
+		if(i == adjustedDimention){
+			tempDimentions1.push_back(inputs[0]->outDimentions[dimention]);
 		}
+		tempDimentions1.push_back(seedDimentions[i]);
 	}
-	double lowVal = numeric_limits<double>::infinity();
-	NumObject answer = NumObject(newDimentions, lowVal);
-	idx = NumObject(newDimentions, 0.0);
+	if(adjustedDimention == seedRank){
+		tempDimentions1.push_back(inputs[0]->outDimentions[dimention]);
+	}
 
-	int preSum = 1;
-	for(int i = 0; i < dimention; i++){
-		preSum *= a.dimentions[i];
+	tempRank1 = tempDimentions1.size();
+	tempSize1 = 1;
+	for(int i = 0; i < tempRank1; i++){
+		tempSize1 *= tempDimentions1[i];
 	}
-	int postSum = a.values.size() / (preSum * a.dimentions[dimention]);
+
+	temp1.clear();
+	temp1.resize(tempSize1, 0.0);
+
+	preSum1 = 1;
+	for(int i = 0; i < adjustedDimention; i++){
+		preSum1 *= seedDimentions[i];
+	}
+	postSum1 = seedSize / preSum1;
+
+	inputs[0]->deriveDimentions(ansDimentions);
+}
+
+void Min::getValue(){
+	inputs[0]->getValue();
+
+	double highVal = numeric_limits<double>::infinity();
+	for(int i = 0; i < outSize; i++){
+		derivativeMemo[i] = highVal;
+	}
 
 	for(int i = 0; i < preSum; i++){
-		for(int x = 0; x < a.dimentions[dimention]; x++){
+		for(int x = 0; x < inputs[0]->outDimentions[dimention]; x++){
 			for(int z = 0; z < postSum; z++){
-				if(a.values[i * postSum * a.dimentions[dimention] + postSum * x + z] < answer.values[i * postSum + z]){
-					answer.values[i * postSum + z] = a.values[i * postSum * a.dimentions[dimention] + postSum * x + z];
-					idx.values[i * postSum + z] = x;
+				if(inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + postSum * x + z] < derivativeMemo[i * postSum + z]){
+					derivativeMemo[i * postSum + z] = inputs[0]->derivativeMemo[i * postSum * inputs[0]->outDimentions[dimention] + postSum * x + z];
+					idx[i * postSum + z] = x;
 				}
 			}
 		}
 	}
-	return memoize(answer);
+}
+
+void Min::getValueDimentions(){
+	inputs[0]->getValueDimentions();
+
+	outDimentions.clear();
+	for(int i = 0; i < inputs[0]->outRank; i++){
+		if(i != dimention){
+			outDimentions.push_back(inputs[0]->outDimentions[i]);
+		}
+	}
+	outRank = inputs[0]->outRank - 1;
+	outSize = inputs[0]->outSize / inputs[0]->outDimentions[dimention];
+
+	double highVal = numeric_limits<double>::infinity();
+	derivativeMemo.clear();
+	derivativeMemo.resize(outSize, highVal);
+	idx.clear();
+	idx.resize(outSize, 0);
+
+	preSum = 1;
+	for(int i = 0; i < dimention; i++){
+		preSum *= inputs[0]->outDimentions[i];
+	}
+	postSum = outSize / preSum;
 }
 
 

@@ -2,12 +2,12 @@
 #define MNISTLOAD_H
 #include "Node.hpp"
 
-vector<NumObject> randomTestSet(int n);
-vector<NumObject> randomTrainSet(int n);
+vector<vector<double>> randomTestSet(int n);
+vector<vector<double>> randomTrainSet(int n);
 
-NumObject openTestImages();
-NumObject openTestLabels();
-NumObject openTrainImages();
-NumObject openTrainLabels();
+vector<double> openTestImages();
+vector<double> openTestLabels();
+vector<double> openTrainImages();
+vector<double> openTrainLabels();
 
 #endif

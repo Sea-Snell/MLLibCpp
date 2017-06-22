@@ -1,157 +1,347 @@
 #include "Math.hpp"
-#include "MapVals.hpp"
 #include "Node.hpp"
 
-double Add::operation(vector<double>& a){
-	return a[0] + a[1];
+double Add::operation(double a, double b){
+	return a + b;
 }
 
-
-void Add::derive(NumObject& seed){
+void Add::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		NumObject temp1 = reduceSumByDimention(seed, seed.rank - inputs[0]->derivativeMemo.rank);
-		inputs[0]->derive(temp1);
+		if(seedRank - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < seedSize / ansSize1; x++){
+					sum += seed[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(seed);
+		}
 	}
 
 	if (typeid(*inputs[1]) != typeid(Constant)){
-		NumObject temp2 = reduceSumByDimention(seed, seed.rank - inputs[1]->derivativeMemo.rank);
-		inputs[1]->derive(temp2);
+		if(seedRank - inputs[1]->outRank > 0){
+			for(int i = 0; i < ansSize2; i++){
+				double sum = 0.0;
+				for(int x = 0; x < seedSize / ansSize2; x++){
+					sum += seed[x * ansSize2 + i];
+				}
+				ans2[i] = sum;
+			}
+
+			inputs[1]->derive(ans2);
+		}
+		else{
+			inputs[1]->derive(seed);
+		}
 	}
 }
 
-double Subtract::operation(vector<double>& a){
-	return a[0] - a[1];
+void Add::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentionsVal.size();
+	seedSize = getSize(seedDimentions);
+
+	ansDimentions1 = helpReduceDimentions(seedDimentions, inputs[0]->outDimentions);
+	ansRank1 = ansDimentions1.size();
+	ansSize1 = getSize(ansDimentions1);
+	ans1.clear();
+	ans1.resize(ansSize1, 0.0);
+
+	inputs[0]->deriveDimentions(ansDimentions1);
+
+
+	ansDimentions2 = helpReduceDimentions(seedDimentions, inputs[1]->outDimentions);
+	ansRank2 = ansDimentions2.size();
+	ansSize2 = getSize(ansDimentions2);
+	ans2.clear();
+	ans2.resize(ansSize2, 0.0);
+
+	inputs[1]->deriveDimentions(ansDimentions2);
 }
 
-void Subtract::derive(NumObject& seed){
+double Subtract::operation(double a, double b){
+	return a - b;
+}
+
+void Subtract::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		NumObject temp1 = reduceSumByDimention(seed, seed.rank - inputs[0]->derivativeMemo.rank);
-		inputs[0]->derive(temp1);
+		if(seedRank - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < seedSize / ansSize1; x++){
+					sum += seed[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(seed);
+		}
 	}
 
 	if (typeid(*inputs[1]) != typeid(Constant)){
-		vector<NumObject> items2 = {seed};
-		NumObject eval2 = mapVals(this, &Subtract::deriveOperation2, items2);
-		NumObject temp2 = reduceSumByDimention(eval2, eval2.rank - inputs[1]->derivativeMemo.rank);
-		inputs[1]->derive(temp2);
+		if(seedRank - inputs[1]->outRank > 0){
+			for(int i = 0; i < ansSize2; i++){
+				double sum = 0.0;
+				for(int x = 0; x < seedSize / ansSize2; x++){
+					sum += seed[x * ansSize2 + i];
+				}
+				ans2[i] = -sum;
+			}
+		}
+		else{
+			for(int i = 0; i < ansSize2; i++){
+				ans2[i] = -seed[i];
+			}
+		}
+		inputs[1]->derive(ans2);
 	}
 }
 
-double Subtract::deriveOperation2(vector<double>& a){
-	return -a[0];
+double Multiply::operation(double a, double b){
+	return a * b;
 }
 
-double Multiply::operation(vector<double>& a){
-	return a[0] * a[1];
-}
-
-void Multiply::derive(NumObject& seed){
+void Multiply::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {inputs[1]->derivativeMemo, seed};
-		NumObject eval1 = mapVals(this, &Multiply::deriveOperation1, items1);
-		NumObject temp1 = reduceSumByDimention(eval1, eval1.rank - inputs[0]->derivativeMemo.rank);
-		inputs[0]->derive(temp1);
+		for(int i = 0; i < tempSize1; i++){
+			temp1[i] = seed[i % seedSize] * inputs[1]->derivativeMemo[i % inputs[1]->outSize];
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 
 	if (typeid(*inputs[1]) != typeid(Constant)){
-		vector<NumObject> items2 = {inputs[0]->derivativeMemo, seed};
-		NumObject eval2 = mapVals(this, &Multiply::deriveOperation1, items2);
-		NumObject temp2 = reduceSumByDimention(eval2, eval2.rank - inputs[1]->derivativeMemo.rank);
-		inputs[1]->derive(temp2);
+		for(int i = 0; i < tempSize2; i++){
+			temp2[i] = seed[i % seedSize] * inputs[0]->derivativeMemo[i % inputs[0]->outSize];
+		}
+
+		if(tempRank2 - inputs[1]->outRank > 0){
+			for(int i = 0; i < ansSize2; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize2 / ansSize2; x++){
+					sum += temp2[x * ansSize2 + i];
+				}
+				ans2[i] = sum;
+			}
+			inputs[1]->derive(ans2);
+		}
+		else{
+			inputs[1]->derive(temp2);
+		}
 	}
 }
 
-double Multiply::deriveOperation1(vector<double>& a){
-	return a[0] * a[1];
+void Multiply::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentionsVal.size();
+	seedSize = getSize(seedDimentions);
+
+	helpDeriveDimentions(vector<vector<int>>{seedDimentions, inputs[1]->outDimentions}, vector<vector<int>>{seedDimentions, inputs[0]->outDimentions});
+	inputs[0]->deriveDimentions(ansDimentions1);
+	inputs[1]->deriveDimentions(ansDimentions2);
 }
 
-double Divide::operation(vector<double>& a){
-	return a[0] / a[1];
+double Divide::operation(double a, double b){
+	return a / b;
 }
 
-void Divide::derive(NumObject& seed){
+void Divide::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[1]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &Divide::deriveOperation1, items1);
-		NumObject temp1 = reduceSumByDimention(eval1, eval1.rank - inputs[0]->derivativeMemo.rank);
-		inputs[0]->derive(temp1);
+		for(int i = 0; i < tempSize1; i++){
+			temp1[i] = seed[i % seedSize] / inputs[1]->derivativeMemo[i % inputs[1]->outSize];
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 
 	if (typeid(*inputs[1]) != typeid(Constant)){
-		vector<NumObject> items2 = {seed, inputs[0]->derivativeMemo, inputs[1]->derivativeMemo};
-		NumObject eval2 = mapVals(this, &Divide::deriveOperation2, items2);
-		NumObject temp2 = reduceSumByDimention(eval2, eval2.rank - inputs[1]->derivativeMemo.rank);
-		inputs[1]->derive(temp2);
+		for(int i = 0; i < tempSize2; i++){
+			double tempVal = inputs[1]->derivativeMemo[i % inputs[1]->outSize];
+			temp2[i] = (-seed[i % seedSize] * inputs[0]->derivativeMemo[i % inputs[0]->outSize]) / (tempVal * tempVal);
+		}
+
+		if(tempRank2 - inputs[1]->outRank > 0){
+			for(int i = 0; i < ansSize2; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize2 / ansSize2; x++){
+					sum += temp2[x * ansSize2 + i];
+				}
+				ans2[i] = sum;
+			}
+			inputs[1]->derive(ans2);
+		}
+		else{
+			inputs[1]->derive(temp2);
+		}
 	}
 }
 
-double Divide::deriveOperation1(vector<double>& a){
-	return a[0] / a[1];
+void Divide::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentionsVal.size();
+	seedSize = getSize(seedDimentions);
+
+	helpDeriveDimentions(vector<vector<int>>{seedDimentions, inputs[1]->outDimentions}, vector<vector<int>>{seedDimentions, inputs[0]->outDimentions, inputs[1]->outDimentions});
+	inputs[0]->deriveDimentions(ansDimentions1);
+	inputs[1]->deriveDimentions(ansDimentions2);
 }
 
-double Divide::deriveOperation2(vector<double>& a){
-	return (-a[0] * a[1]) / (a[2] * a[2]);
-}
-
-double Pow::operation(vector<double>& a){
-	return pow(a[0], a[1]);
+double Pow::operation(double a, double b){
+	return pow(a, b);
 }
 
 
-void Pow::derive(NumObject& seed){
+void Pow::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo, inputs[1]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &Pow::deriveOperation1, items1);
-		NumObject temp1 = reduceSumByDimention(eval1, eval1.rank - inputs[0]->derivativeMemo.rank);
-		inputs[0]->derive(temp1);
+		for(int i = 0; i < tempSize1; i++){
+			temp1[i] = seed[i % seedSize] * inputs[1]->derivativeMemo[i % inputs[1]->outSize] * pow(inputs[0]->derivativeMemo[i % inputs[0]->outSize], (inputs[1]->derivativeMemo[i % inputs[1]->outSize] - 1.0));
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 
 	if (typeid(*inputs[1]) != typeid(Constant)){
-		vector<NumObject> items2 = {seed, inputs[0]->derivativeMemo, derivativeMemo};
-		NumObject eval2 = mapVals(this, &Pow::deriveOperation2, items2);
-		NumObject temp2 = reduceSumByDimention(eval2, eval2.rank - inputs[1]->derivativeMemo.rank);
-		inputs[1]->derive(temp2);
+		for(int i = 0; i < tempSize2; i++){
+			temp2[i] = seed[i % seedSize] * derivativeMemo[i % outSize] * log(inputs[0]->derivativeMemo[i % inputs[0]->outSize]);
+		}
+
+		if(tempRank2 - inputs[1]->outRank > 0){
+			for(int i = 0; i < ansSize2; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize2 / ansSize2; x++){
+					sum += temp2[x * ansSize2 + i];
+				}
+				ans2[i] = sum;
+			}
+			inputs[1]->derive(ans2);
+		}
+		else{
+			inputs[1]->derive(temp2);
+		}
 	}
 }
 
-double Pow::deriveOperation1(vector<double>& a){
-	return a[0] * a[2] * pow(a[1], (a[2] - 1.0));
+void Pow::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentionsVal.size();
+	seedSize = getSize(seedDimentions);
+
+	helpDeriveDimentions(vector<vector<int>>{seedDimentions, inputs[0]->outDimentions, inputs[1]->outDimentions}, vector<vector<int>>{seedDimentions, inputs[0]->outDimentions, outDimentions});
+	inputs[0]->deriveDimentions(ansDimentions1);
+	inputs[1]->deriveDimentions(ansDimentions2);
 }
 
-double Pow::deriveOperation2(vector<double>& a){
-	return a[0] * log(a[1]) * a[2];
+double Ln::operation(double a){
+	return log(a);
 }
 
-double Ln::operation(vector<double>& a){
-	return log(a[0]);
-}
-
-void Ln::derive(NumObject& seed){
+void Ln::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &Ln::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < tempSize1; i++){
+			temp1[i] = seed[i % seedSize] / inputs[0]->derivativeMemo[i % inputs[0]->outSize];
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 }
 
-double Ln::deriveOperation1(vector<double>& a){
-	return a[0] / a[1];
+void Ln::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentionsVal.size();
+	seedSize = getSize(seedDimentions);
+
+	helpDeriveDimentions(vector<vector<int>>{seedDimentions, inputs[0]->outDimentions});
+	inputs[0]->deriveDimentions(ansDimentions1);
 }
 
-double Exp::operation(vector<double>& a){
-	return exp(a[0]);
+double Exp::operation(double a){
+	return exp(a);
 }
 
-void Exp::derive(NumObject& seed){
+void Exp::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, derivativeMemo};
-		NumObject eval1 = mapVals(this, &Exp::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < tempSize1; i++){
+			temp1[i] = seed[i % seedSize] * derivativeMemo[i % outSize];
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 }
 
-double Exp::deriveOperation1(vector<double>& a){
-	return a[0] * a[1];
+void Exp::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentionsVal.size();
+	seedSize = getSize(seedDimentions);
+
+	helpDeriveDimentions(vector<vector<int>>{seedDimentions, outDimentions});
+	inputs[0]->deriveDimentions(ansDimentions1);
 }
 
 Log::Log(Node* a, double baseVal): BasicFunction(a){
@@ -159,119 +349,211 @@ Log::Log(Node* a, double baseVal): BasicFunction(a){
 	base = baseVal;
 }
 
-double Log::operation(vector<double>& a){
-	return log(a[0]) / log(base);
+double Log::operation(double a){
+	return log(a) / log(base);
 }
 
-void Log::derive(NumObject& seed){
+void Log::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &Log::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
-	}
-}
+		for(int i = 0; i < tempSize1; i++){
+			temp1[i] = seed[i % seedSize] / (inputs[0]->derivativeMemo[i % inputs[0]->outSize] * log(base));
+		}
 
-double Log::deriveOperation1(vector<double>& a){
-	return a[0] / (a[1] * log(base));
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
+	}
 }
 
 string Log::describe(){
 	return name + "(" + inputs[0]->describe() + ", " + to_string(base) + ")";
 }
 
-double Sin::operation(vector<double>& a){
-	return sin(a[0]);
+void Log::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentionsVal.size();
+	seedSize = getSize(seedDimentions);
+
+	helpDeriveDimentions(vector<vector<int>>{seedDimentions, inputs[0]->outDimentions});
+	inputs[0]->deriveDimentions(ansDimentions1);
 }
 
-void Sin::derive(NumObject& seed){
+double Sin::operation(double a){
+	return sin(a);
+}
+
+void Sin::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &Sin::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < tempSize1; i++){
+			temp1[i] = seed[i % seedSize] * cos(inputs[0]->derivativeMemo[i % inputs[0]->outSize]);
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 }
 
-double Sin::deriveOperation1(vector<double>& a){
-	return a[0] * cos(a[1]);
+void Sin::deriveDimentions(vector<int>& seedDimentionsVal){
+	seedDimentions = seedDimentionsVal;
+	seedRank = seedDimentionsVal.size();
+	seedSize = getSize(seedDimentions);
+
+	helpDeriveDimentions(vector<vector<int>>{seedDimentions, inputs[0]->outDimentions});
+	inputs[0]->deriveDimentions(ansDimentions1);
 }
 
-double Cos::operation(vector<double>& a){
-	return cos(a[0]);
+double Cos::operation(double a){
+	return cos(a);
 }
 
-void Cos::derive(NumObject& seed){
+void Cos::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &Cos::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < tempSize1; i++){
+			temp1[i] = -seed[i % seedSize] * sin(inputs[0]->derivativeMemo[i % inputs[0]->outSize]);
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 }
 
-double Cos::deriveOperation1(vector<double>& a){
-	return -a[0] * sin(a[1]);
+double Tan::operation(double a){
+	return tan(a);
 }
 
-double Tan::operation(vector<double>& a){
-	return tan(a[0]);
-}
-
-void Tan::derive(NumObject& seed){
+void Tan::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &Tan::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < tempSize1; i++){
+			double tempVal = (1.0 / cos(inputs[0]->derivativeMemo[i % inputs[0]->outSize]));
+			temp1[i] = seed[i % seedSize] * tempVal * tempVal;
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 }
 
-double Tan::deriveOperation1(vector<double>& a){
-	return a[0] * (1.0 / cos(a[1])) * (1.0 / cos(a[1]));
+double ArcSin::operation(double a){
+	return asin(a);
 }
 
-double ArcSin::operation(vector<double>& a){
-	return asin(a[0]);
-}
-
-void ArcSin::derive(NumObject& seed){
+void ArcSin::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &ArcSin::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < tempSize1; i++){
+			double tempVal = inputs[0]->derivativeMemo[i % inputs[0]->outSize];
+			temp1[i] = seed[i % seedSize] / pow(1.0 - tempVal * tempVal, 0.5);
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 }
 
-double ArcSin::deriveOperation1(vector<double>& a){
-	return a[0] / pow(1.0 - a[1] * a[1], 0.5);
+double ArcCos::operation(double a){
+	return acos(a);
 }
 
-double ArcCos::operation(vector<double>& a){
-	return acos(a[0]);
-}
-
-void ArcCos::derive(NumObject& seed){
+void ArcCos::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &ArcCos::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+		for(int i = 0; i < tempSize1; i++){
+			double tempVal = inputs[0]->derivativeMemo[i % inputs[0]->outSize];
+			temp1[i] = -seed[i % seedSize] / pow(1.0 - tempVal * tempVal, 0.5);
+		}
+
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
 	}
 }
 
-double ArcCos::deriveOperation1(vector<double>& a){
-	return -a[0] / pow(1.0 - a[1] * a[1], 0.5);
+double ArcTan::operation(double a){
+	return atan(a);
 }
 
-double ArcTan::operation(vector<double>& a){
-	return atan(a[0]);
-}
-
-void ArcTan::derive(NumObject& seed){
+void ArcTan::derive(vector<double>& seed){
 	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &ArcTan::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
-	}
-}
+		for(int i = 0; i < tempSize1; i++){
+			double tempVal = inputs[0]->derivativeMemo[i % inputs[0]->outSize];
+			temp1[i] = seed[i % seedSize] / (1.0 + tempVal * tempVal);
+		}
 
-double ArcTan::deriveOperation1(vector<double>& a){
-	return a[0] / (1.0 + a[1] * a[1]);
+		if(tempRank1 - inputs[0]->outRank > 0){
+			for(int i = 0; i < ansSize1; i++){
+				double sum = 0.0;
+				for(int x = 0; x < tempSize1 / ansSize1; x++){
+					sum += temp1[x * ansSize1 + i];
+				}
+				ans1[i] = sum;
+			}
+			inputs[0]->derive(ans1);
+		}
+		else{
+			inputs[0]->derive(temp1);
+		}
+	}
 }
 

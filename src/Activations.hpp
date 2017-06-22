@@ -4,59 +4,74 @@
 
 class Sigmoid: public BasicFunction{
 public:
+	vector<double> ans;
+
 	Sigmoid(Node* a): BasicFunction(a){name = "Sigmoid";}
 
-	double operation(vector<double>& a);
-	void derive(NumObject& seed);
-	double deriveOperation1(vector<double>& a);
+	double operation(double a);
+	void derive(vector<double>& seed);
+	void deriveDimentions(vector<int>& seedDimentionsVal);
 };
 
-class ReLU: public BasicFunction{
+class ReLU: public Sigmoid{
 public:
-	ReLU(Node* a): BasicFunction(a){name = "ReLU";}
 
-	double operation(vector<double>& a);
-	void derive(NumObject& seed);
-	double deriveOperation1(vector<double>& a);
+	ReLU(Node* a): Sigmoid(a){name = "ReLU";}
+
+	double operation(double a);
+	void derive(vector<double>& seed);
 };
 
-class LeakyReLU: public BasicFunction{
+class LeakyReLU: public Sigmoid{
 public:
-	LeakyReLU(Node* a): BasicFunction(a){name = "LeakyReLU";}
 
-	double operation(vector<double>& a);
-	void derive(NumObject& seed);
-	double deriveOperation1(vector<double>& a);
+	LeakyReLU(Node* a): Sigmoid(a){name = "LeakyReLU";}
+
+	double operation(double a);
+	void derive(vector<double>& seed);
 };
 
-class Gaussian: public BasicFunction{
+class Gaussian: public Sigmoid{
 public:
-	Gaussian(Node* a): BasicFunction(a){name = "Gaussian";}
+	Gaussian(Node* a): Sigmoid(a){name = "Gaussian";}
 
-	double operation(vector<double>& a);
-	void derive(NumObject& seed);
-	double deriveOperation1(vector<double>& a);
+	double operation(double a);
+	void derive(vector<double>& seed);
 };
 
 class Softmax: public Node{
 public:
 	int dimention;
 
+	vector<int> newDimentions;
+	vector<double> maxVals;
+	int newSize;
+
+	int preSum;
+	int postSum;
+
+	vector<double> temp;
+	vector<double> temp2;
+
+	vector<double> temp3;
+	vector<double> sums;
+
+	vector<double> ans;
+
 	Softmax(Node* a, int dimentionVal = -1);
 	
-	NumObject getValue();
-	double operation1(vector<double>& a);
-	void derive(NumObject& seed);
-	double deriveOperation1(vector<double>& a);
+	void getValue();
+	void getValueDimentions();
+	void derive(vector<double>& seed);
+	void deriveDimentions(vector<int>& seedDimentionsVal);
 };
 
-class TanH: public BasicFunction{
+class TanH: public Sigmoid{
 public:
-	TanH(Node* a): BasicFunction(a){name = "TanH";}
+	TanH(Node* a): Sigmoid(a){name = "TanH";}
 
-	double operation(vector<double>& a);
-	void derive(NumObject& seed);
-	double deriveOperation1(vector<double>& a);
+	double operation(double a);
+	void derive(vector<double>& seed);
 };
 
 #endif

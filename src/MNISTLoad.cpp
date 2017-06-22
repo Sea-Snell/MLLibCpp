@@ -2,11 +2,13 @@
 #include <iostream>
 #include <fstream>
 
-vector<NumObject> randomTestSet(int n){
+vector<vector<double>> randomTestSet(int n){
 	srand(time(NULL));
 
-	NumObject ansX = NumObject(vector<int> {n, 28 * 28});
-	NumObject ansY = NumObject(vector<int> {n});
+	vector<double> ansX;
+	ansX.reserve(n * 28 * 28);
+	vector<double> ansY;
+	ansY.reserve(n);
 
 	ifstream testImages;
 	testImages.open("../MNIST/testImages", ios::binary);
@@ -25,22 +27,24 @@ vector<NumObject> randomTestSet(int n){
 		testLabels.read(dataY, 1);
 
 		for(int x = 0; x < 28 * 28; x++){
-			ansX.values.push_back((unsigned char) dataX[x]);
+			ansX.push_back((unsigned char) dataX[x]);
 		}
-		ansY.values.push_back((unsigned char) dataY[0]);
+		ansY.push_back((unsigned char) dataY[0]);
 	}
 	testImages.close();
 	testLabels.close();
 
-	vector<NumObject> ans = {ansX, ansY};
+	vector<vector<double>> ans = {ansX, ansY};
 	return ans;
 }
 
-vector<NumObject> randomTrainSet(int n){
+vector<vector<double>> randomTrainSet(int n){
 	srand(time(NULL));
 
-	NumObject ansX = NumObject(vector<int> {n, 28 * 28});
-	NumObject ansY = NumObject(vector<int> {n});
+	vector<double> ansX;
+	ansX.reserve(n * 28 * 28);
+	vector<double> ansY;
+	ansY.reserve(n);
 
 	ifstream trainImages;
 	trainImages.open("../MNIST/trainImages", ios::binary);
@@ -59,18 +63,18 @@ vector<NumObject> randomTrainSet(int n){
 		trainLabels.read(dataY, 1);
 
 		for(int x = 0; x < 28 * 28; x++){
-			ansX.values.push_back((unsigned char) dataX[x]);
+			ansX.push_back((unsigned char) dataX[x]);
 		}
-		ansY.values.push_back((unsigned char) dataY[0]);
+		ansY.push_back((unsigned char) dataY[0]);
 	}
 	trainImages.close();
 	trainLabels.close();
 
-	vector<NumObject> ans = {ansX, ansY};
+	vector<vector<double>> ans = {ansX, ansY};
 	return ans;
 }
 
-NumObject openTestImages(){
+vector<double> openTestImages(){
 	char * data = new char [10000 * 28 * 28];
 	ifstream testImages;
 	testImages.open("../MNIST/testImages", ios::binary);
@@ -84,10 +88,10 @@ NumObject openTestImages(){
 		a.push_back((unsigned char) data[i]);
 	}
 
-	return NumObject(a, vector<int>{10000, 28 * 28});
+	return a;
 }
 
-NumObject openTestLabels(){
+vector<double> openTestLabels(){
 	char * data = new char [10000];
 	ifstream testLabels;
 	testLabels.open("../MNIST/testLabels", ios::binary);
@@ -101,10 +105,10 @@ NumObject openTestLabels(){
 		a.push_back((unsigned char) data[i]);
 	}
 
-	return NumObject(a, vector<int>{10000});
+	return a;
 }
 
-NumObject openTrainImages(){
+vector<double> openTrainImages(){
 	char * data = new char [60000 * 28 * 28];
 	ifstream trainImages;
 	trainImages.open("../MNIST/trainImages", ios::binary);
@@ -118,10 +122,10 @@ NumObject openTrainImages(){
 		a.push_back((unsigned char) data[i]);
 	}
 
-	return NumObject(a, vector<int>{60000, 28 * 28});
+	return a;
 }
 
-NumObject openTrainLabels(){
+vector<double> openTrainLabels(){
 	char * data = new char [60000];
 	ifstream trainLabels;
 	trainLabels.open("../MNIST/trainLabels", ios::binary);
@@ -135,5 +139,5 @@ NumObject openTrainLabels(){
 		a.push_back((unsigned char) data[i]);
 	}
 
-	return NumObject(a, vector<int>{60000});
+	return a;
 }

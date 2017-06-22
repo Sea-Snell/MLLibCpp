@@ -1,58 +1,79 @@
 #include "Optimizers.hpp"
 #include "HelperFunctions.hpp"
-#include "MapVals.hpp"
 
 GradientDescent::GradientDescent(double LR){
-	learningRate = NumObject(LR);
+	learningRate = LR;
 }
 
-void GradientDescent::minimize(Node* expression, vector<Variable*>& variables){
+void GradientDescent::minimize(Node* expression, vector<Variable*>& variables, vector<Variable*>& noClearVariables){
 	derive(expression, variables);
 
 	for(int i = 0; i < variables.size(); i++){
-		vector<NumObject> items = {variables[i]->value, variables[i]->derivative, learningRate};
-		variables[i]->value = mapVals(this, &GradientDescent::operation, items);
+		for(int x = 0; x < variables[i]->outSize; x++){
+			variables[i]->derivativeMemo[x] -= learningRate * variables[i]->derivative[x];
+		}
+	}
+
+	for(int i = 0; i < noClearVariables.size(); i++){
+		for(int x = 0; x < noClearVariables[i]->outSize; x++){
+			noClearVariables[i]->derivativeMemo[x] -= learningRate * noClearVariables[i]->derivative[x];
+		}
 	}
 }
 
-double GradientDescent::operation(vector<double>& a){
-	return a[0] - a[1] * a[2];
-}
-
 MomentumGradientDescent::MomentumGradientDescent(double LR, double momentum){
-	learningRate = NumObject(LR);
-	momentumRate = NumObject(momentum);
+	learningRate = LR;
+	momentumRate = momentum;
 }
 
-void  MomentumGradientDescent::minimize(Node* expression, vector<Variable*>& variables){
+void  MomentumGradientDescent::minimize(Node* expression, vector<Variable*>& variables, vector<Variable*>& noClearVariables){
 	derive(expression, variables);
 
-	if(velocity.size() != variables.size()){
+	if(velocity.size() != variables.size() + noClearVariables.size()){
 		velocity.clear();
 		for(int i = 0; i < variables.size(); i++){
-			vector<NumObject> items = {variables[i]->derivative, learningRate};
-			velocity.push_back(mapVals(this, &MomentumGradientDescent::operation2, items));
-			vector<NumObject> items2 = {variables[i]->value, velocity[i]};
-			variables[i]->value = mapVals(this, &MomentumGradientDescent::operation1, items2);
+			vector<double> temp;
+			for(int x = 0; x < variables[i]->outSize; x++){
+				temp.push_back(learningRate * variables[i]->derivative[x]);
+			}
+			velocity.push_back(temp);
+
+			for(int x = 0; x < variables[i]->outSize; x++){
+				variables[i]->derivativeMemo[x] -= velocity[i][x];
+			}
+		}
+
+		for(int i = 0; i < noClearVariables.size(); i++){
+			vector<double> temp;
+			for(int x = 0; x < noClearVariables[i]->outSize; x++){
+				temp.push_back(learningRate * noClearVariables[i]->derivative[x]);
+			}
+			velocity.push_back(temp);
+
+			for(int x = 0; x < noClearVariables[i]->outSize; x++){
+				noClearVariables[i]->derivativeMemo[x] -= velocity[i + variables.size()][x];
+			}
 		}
 	}
 	else{
 		for(int i = 0; i < variables.size(); i++){
-			for(int x = 0; x < variables[i]->derivative.values.size(); x++){
-				velocity[i].values[x] = momentumRate.values[0] * velocity[i].values[x] + learningRate.values[0] * variables[i]->derivative.values[x];
+			for(int x = 0; x < variables[i]->outSize; x++){
+				velocity[i][x] = momentumRate * velocity[i][x] + learningRate * variables[i]->derivative[x];
 			}
-			vector<NumObject> items2 = {variables[i]->value, velocity[i]};
-			variables[i]->value = mapVals(this, &MomentumGradientDescent::operation1, items2);
+			for(int x = 0; x < variables[i]->outSize; x++){
+				variables[i]->derivativeMemo[x] -= velocity[i][x];
+			}
+		}
+
+		for(int i = 0; i < noClearVariables.size(); i++){
+			for(int x = 0; x < noClearVariables[i]->outSize; x++){
+				velocity[i + variables.size()][x] = momentumRate * velocity[i + variables.size()][x] + learningRate * noClearVariables[i]->derivative[x];
+			}
+			for(int x = 0; x < noClearVariables[i]->outSize; x++){
+				noClearVariables[i]->derivativeMemo[x] -= velocity[i + variables.size()][x];
+			}
 		}
 	}
-}
-
-double MomentumGradientDescent::operation1(vector<double>& a){
-	return a[0] - a[1];
-}
-
-double MomentumGradientDescent::operation2(vector<double>& a){
-	return a[0] * a[1];
 }
 
 

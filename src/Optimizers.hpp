@@ -4,23 +4,21 @@
 
 class GradientDescent{
 public:
-	NumObject learningRate;
+	double learningRate;
 
 	GradientDescent(double LR);
-	void minimize(Node* expression, vector<Variable*>& variables);
-	double operation(vector<double>& a);
+	void minimize(Node* expression, vector<Variable*>& variables, vector<Variable*>& noClearVariables);
 };
 
 class MomentumGradientDescent{
 public:
-	NumObject learningRate;
-	vector<NumObject> velocity;
-	NumObject momentumRate;
+	double learningRate;
+	vector<vector<double>> velocity;
+	double momentumRate;
 
 	MomentumGradientDescent(double LR, double momentum);
-	void minimize(Node* expression, vector<Variable*>& variables);
-	double operation1(vector<double>& a);
-	double operation2(vector<double>& a);
+	void preprocessVelocity();
+	void minimize(Node* expression, vector<Variable*>& variables, vector<Variable*>& noClearVariables);
 };
 
 #endif
