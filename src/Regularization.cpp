@@ -4,25 +4,41 @@
 
 
 L2::L2(Node* cost, vector<Node*> weights, int dataSize, double parameterVal){
+	outCount = 0;
 	inputs.push_back(cost);
+	cost->outCount += 1;
 	for(int i = 0; i < weights.size(); i++){
 		inputs.push_back(weights[i]);
+		weights[i]->outCount += 1;
 	}
 	name = "L2";
 	parameter = parameterVal;
 	size = dataSize;
+	dCallCount = 0;
+	gCallCount = 0;
 }
 
-NumObject L2::getValue(){
-	NumObject cost = inputs[0]->getValue();
+NumObject L2::getValue(int t, int tf){
+	gCallCount += 1;
+	if(gCallCount > 1){
+		if(gCallCount >= outCount){
+			gCallCount = 0;
+		}
+		return derivativeMemo[t];
+	}
+	if(gCallCount >= outCount){
+		gCallCount = 0;
+	}
+
+	NumObject cost = inputs[0]->getValue(t, tf);
 
 	if(parameter == 0.0){
-		return memoize(cost);
+		return memoize(cost, t, tf);
 	}
 
 	vector<NumObject> weights;
 	for(int i = 1; i < inputs.size(); i++){
-		weights.push_back(inputs[i]->getValue());
+		weights.push_back(inputs[i]->getValue(t, tf));
 	}
 
 	double sum = 0.0;
@@ -35,18 +51,20 @@ NumObject L2::getValue(){
 	sum *= parameter / (2.0 * size);
 
 	NumObject ans = NumObject(sum + cost.values[0]);
-	return memoize(ans);
+	return memoize(ans, t, tf);
 }
 
-void L2::derive(NumObject& seed){
-	inputs[0]->derive(seed);
+void L2::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		inputs[0]->derive(tempSeed, t, tf);
 
-	if(parameter != 0.0){	
-		for(int i = 1; i < inputs.size(); i++){
-			vector<NumObject> items = {inputs[i]->derivativeMemo, seed, parameter / size};
-			NumObject ans = mapVals(this, &L2::operation, items);
+		if(parameter != 0.0){	
+			for(int i = 1; i < inputs.size(); i++){
+				vector<NumObject> items = {inputs[i]->derivativeMemo[t], tempSeed, parameter / size};
+				NumObject ans = mapVals(this, &L2::operation, items);
 
-			inputs[i]->derive(ans);
+				inputs[i]->derive(ans, t, tf);
+			}
 		}
 	}
 }
@@ -65,11 +83,22 @@ string L2::describe(){
 	return ans;
 }
 
-NumObject L1::getValue(){
-	NumObject cost = inputs[0]->getValue();
+NumObject L1::getValue(int t, int tf){
+	gCallCount += 1;
+	if(gCallCount > 1){
+		if(gCallCount >= outCount){
+			gCallCount = 0;
+		}
+		return derivativeMemo[t];
+	}
+	if(gCallCount >= outCount){
+		gCallCount = 0;
+	}
+
+	NumObject cost = inputs[0]->getValue(t, tf);
 
 	if(parameter == 0.0){
-		return memoize(cost);
+		return memoize(cost, t, tf);
 	}
 
 	vector<NumObject> weights;
@@ -87,18 +116,20 @@ NumObject L1::getValue(){
 	sum *= parameter / (2.0 * size);
 
 	NumObject ans = NumObject(sum + cost.values[0]);
-	return memoize(ans);
+	return memoize(ans, t, tf);
 }
 
-void L1::derive(NumObject& seed){
-	inputs[0]->derive(seed);
+void L1::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		inputs[0]->derive(tempSeed, t, tf);
 
-	if(parameter != 0.0){	
-		for(int i = 1; i < inputs.size(); i++){
-			vector<NumObject> items = {inputs[i]->derivativeMemo, seed, parameter / size};
-			NumObject ans = mapVals(this, &L1::operation, items);
+		if(parameter != 0.0){	
+			for(int i = 1; i < inputs.size(); i++){
+				vector<NumObject> items = {inputs[i]->derivativeMemo[t], tempSeed, parameter / size};
+				NumObject ans = mapVals(this, &L1::operation, items);
 
-			inputs[i]->derive(ans);
+				inputs[i]->derive(ans, t, tf);
+			}
 		}
 	}
 }
@@ -139,25 +170,42 @@ void maxNorm(NumObject& weight, int dimention, double c){
 
 
 Dropout::Dropout(Node* a, int dimentionVal, double probabilityVal){
+	outCount = 0;
 	inputs.push_back(a);
+	a->outCount += 1;
 	dimention = dimentionVal;
 	probability = probabilityVal;
 	name = "Dropout";
 	training = true;
+	dCallCount = 0;
+	gCallCount = 0;
 }
 
-NumObject Dropout::getValue(){
-	NumObject a = inputs[0]->getValue();
+NumObject Dropout::getValue(int t, int tf){
+	gCallCount += 1;
+	if(gCallCount > 1){
+		if(gCallCount >= outCount){
+			gCallCount = 0;
+		}
+		return derivativeMemo[t];
+	}
+	if(gCallCount >= outCount){
+		gCallCount = 0;
+	}
+
+	NumObject a = inputs[0]->getValue(t, tf);
 
 	if(training == true){
-		updateDrop(a.dimentions[dimention]);
+		if(t == 0){
+			updateDrop(a.dimentions[dimention]);
+		}
 	}
 	else{
 		NumObject ans = NumObject(a.dimentions);
 		for(int i = 0; i < a.values.size(); i++){
 			ans.values.push_back(a.values[i] * probability);
 		}
-		return memoize(ans);
+		return memoize(ans, t, tf);
 	}
 
 	int preSum = 1;
@@ -175,7 +223,7 @@ NumObject Dropout::getValue(){
 		}
 	}
 
-	return memoize(ans);
+	return memoize(ans, t, tf);
 }
 
 void Dropout::updateDrop(int size){
@@ -195,44 +243,46 @@ void Dropout::updateDrop(int size){
 	}
 }
 
-void Dropout::derive(NumObject& seed){
-	NumObject a = inputs[0]->derivativeMemo;
+void Dropout::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		NumObject a = inputs[0]->derivativeMemo[t];
 
-	if(seed.rank < (a.rank - dimention)){
-		int postSum = 1;
-		vector<int> newDimentions;
-		newDimentions.push_back(a.dimentions[dimention]);
-		for(int i = dimention + 1; i < a.rank; i++){
-			postSum *= a.dimentions[i];
-			newDimentions.push_back(a.dimentions[i]);
-		}
-
-		NumObject ans = NumObject(newDimentions);
-		for(int x = 0; x < a.dimentions[dimention]; x++){
-			for(int z = 0; z < postSum; z++){
-				ans.values.push_back(seed.values[(x * postSum + z) % seed.values.size()] * dropped[x]);
+		if(tempSeed.rank < (a.rank - dimention)){
+			int postSum = 1;
+			vector<int> newDimentions;
+			newDimentions.push_back(a.dimentions[dimention]);
+			for(int i = dimention + 1; i < a.rank; i++){
+				postSum *= a.dimentions[i];
+				newDimentions.push_back(a.dimentions[i]);
 			}
-		}
 
-		inputs[0]->derive(ans);
-	}
-	else{
-		int preSum = 1;
-		for(int i = 0; i < (dimention - (a.rank - seed.rank)); i++){
-			preSum *= seed.dimentions[i];
-		}
-		int postSum = seed.values.size() / (preSum * seed.dimentions[dimention - (a.rank - seed.rank)]);
-
-		NumObject ans = NumObject(seed.dimentions);
-		for(int i = 0; i < preSum; i++){
-			for(int x = 0; x < seed.dimentions[dimention - (a.rank - seed.rank)]; x++){
+			NumObject ans = NumObject(newDimentions);
+			for(int x = 0; x < a.dimentions[dimention]; x++){
 				for(int z = 0; z < postSum; z++){
-					ans.values.push_back(seed.values[i * postSum * seed.dimentions[dimention - (a.rank - seed.rank)] + x * postSum + z] * dropped[x]);
+					ans.values.push_back(tempSeed.values[(x * postSum + z) % tempSeed.values.size()] * dropped[x]);
 				}
 			}
-		}
 
-		inputs[0]->derive(ans);
+			inputs[0]->derive(ans, t, tf);
+		}
+		else{
+			int preSum = 1;
+			for(int i = 0; i < (dimention - (a.rank - tempSeed.rank)); i++){
+				preSum *= tempSeed.dimentions[i];
+			}
+			int postSum = tempSeed.values.size() / (preSum * tempSeed.dimentions[dimention - (a.rank - tempSeed.rank)]);
+
+			NumObject ans = NumObject(tempSeed.dimentions);
+			for(int i = 0; i < preSum; i++){
+				for(int x = 0; x < tempSeed.dimentions[dimention - (a.rank - tempSeed.rank)]; x++){
+					for(int z = 0; z < postSum; z++){
+						ans.values.push_back(tempSeed.values[i * postSum * tempSeed.dimentions[dimention - (a.rank - seed.rank)] + x * postSum + z] * dropped[x]);
+					}
+				}
+			}
+
+			inputs[0]->derive(ans, t, tf);
+		}
 	}
 }
 

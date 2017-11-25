@@ -7,7 +7,7 @@ public:
 	NumObject learningRate;
 
 	GradientDescent(double LR);
-	void minimize(Node* expression, vector<Variable*>& variables);
+	void minimize(vector<Variable*>& variables);
 	double operation(vector<double>& a);
 };
 
@@ -18,7 +18,7 @@ public:
 	NumObject momentumRate;
 
 	MomentumGradientDescent(double LR, double momentum);
-	void minimize(Node* expression, vector<Variable*>& variables);
+	void minimize(vector<Variable*>& variables);
 	double operation1(vector<double>& a);
 	double operation2(vector<double>& a);
 };

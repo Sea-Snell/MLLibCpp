@@ -6,11 +6,13 @@ double Sigmoid::operation(vector<double>& a){
 	return 1.0 / (1.0 + exp(-a[0]));
 }
 
-void Sigmoid::derive(NumObject& seed){
-	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, derivativeMemo};
-		NumObject eval1 = mapVals(this, &Sigmoid::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+void Sigmoid::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			vector<NumObject> items1 = {tempSeed, derivativeMemo[t]};
+			NumObject eval1 = mapVals(this, &Sigmoid::deriveOperation1, items1);
+			inputs[0]->derive(eval1, t, tf);
+		}
 	}
 }
 
@@ -25,11 +27,13 @@ double ReLU::operation(vector<double>& a){
 	return 0.0;
 }
 
-void ReLU::derive(NumObject& seed){
-	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &ReLU::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+void ReLU::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
+			NumObject eval1 = mapVals(this, &ReLU::deriveOperation1, items1);
+			inputs[0]->derive(eval1, t, tf);
+		}
 	}
 }
 
@@ -47,11 +51,13 @@ double LeakyReLU::operation(vector<double>& a){
 	return 0.01 * a[0];
 }
 
-void LeakyReLU::derive(NumObject& seed){
-	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &LeakyReLU::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+void LeakyReLU::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
+			NumObject eval1 = mapVals(this, &LeakyReLU::deriveOperation1, items1);
+			inputs[0]->derive(eval1, t, tf);
+		}
 	}
 }
 
@@ -66,11 +72,13 @@ double Gaussian::operation(vector<double>& a){
 	return exp(-a[0] * a[0]);
 }
 
-void Gaussian::derive(NumObject& seed){
-	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, derivativeMemo, inputs[0]->derivativeMemo};
-		NumObject eval1 = mapVals(this, &Gaussian::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+void Gaussian::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			vector<NumObject> items1 = {tempSeed, derivativeMemo[t], inputs[0]->derivativeMemo[t]};
+			NumObject eval1 = mapVals(this, &Gaussian::deriveOperation1, items1);
+			inputs[0]->derive(eval1, t, tf);
+		}
 	}
 }
 
@@ -79,13 +87,28 @@ double Gaussian::deriveOperation1(vector<double>& a){
 }
 
 Softmax::Softmax(Node* a, int dimentionVal){
+	outCount = 0;
 	inputs.push_back(a);
+	a->outCount += 1;
 	name = "Softmax";
 	dimention = dimentionVal;
+	dCallCount = 0;
+	gCallCount = 0;
 }
 
-NumObject Softmax::getValue(){
-	NumObject a = inputs[0]->getValue();
+NumObject Softmax::getValue(int t, int tf){
+	gCallCount += 1;
+	if(gCallCount > 1){
+		if(gCallCount >= outCount){
+			gCallCount = 0;
+		}
+		return derivativeMemo[t];
+	}
+	if(gCallCount >= outCount){
+		gCallCount = 0;
+	}
+
+	NumObject a = inputs[0]->getValue(t, tf);
 
 	if(dimention == -1){
 		dimention = a.rank - 1;
@@ -135,50 +158,52 @@ NumObject Softmax::getValue(){
 		}
 	}
 
-	return memoize(ans);
+	return memoize(ans, t, tf);
 }
 
 double Softmax::operation1(vector<double>& a){
 	return a[0] + log(a[1]);
 }
 
-void Softmax::derive(NumObject& seed){
-	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, derivativeMemo};
-		NumObject eval1 = mapVals(this, &Softmax::deriveOperation1, items1);
+void Softmax::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			vector<NumObject> items1 = {tempSeed, derivativeMemo[t]};
+			NumObject eval1 = mapVals(this, &Softmax::deriveOperation1, items1);
 
-		vector<int> newDimentions;
-		for(int i = 0; i < inputs[0]->derivativeMemo.rank; i++){
-			if (i != dimention){
-				newDimentions.push_back(inputs[0]->derivativeMemo.dimentions[i]);
-			}
-		}
-
-		int preSum = 1;
-		for(int i = 0; i < dimention; i++){
-			preSum *= eval1.dimentions[i];
-		}
-		int postSum = eval1.values.size() / (preSum * eval1.dimentions[dimention]);
-
-		NumObject sums = NumObject(newDimentions, 0.0);
-		for(int i = 0; i < preSum; i++){
-			for(int x = 0; x < eval1.dimentions[dimention]; x++){
-				for(int z = 0; z < postSum; z++){
-					sums.values[i * postSum + z] += eval1.values[i * postSum * eval1.dimentions[dimention] + x * postSum + z];
+			vector<int> newDimentions;
+			for(int i = 0; i < inputs[0]->derivativeMemo[t].rank; i++){
+				if (i != dimention){
+					newDimentions.push_back(inputs[0]->derivativeMemo[t].dimentions[i]);
 				}
 			}
-		}
 
-		NumObject ans = NumObject(eval1.dimentions);
-		for(int i = 0; i < preSum; i++){
-			for(int x = 0; x < eval1.dimentions[dimention]; x++){
-				for(int z = 0; z < postSum; z++){
-					ans.values.push_back(derivativeMemo.values[i * postSum * eval1.dimentions[dimention] + x * postSum + z] * (seed.values[(i * postSum * eval1.dimentions[dimention] + x * postSum + z) % seed.values.size()] - sums.values[i * postSum + z]));
+			int preSum = 1;
+			for(int i = 0; i < dimention; i++){
+				preSum *= eval1.dimentions[i];
+			}
+			int postSum = eval1.values.size() / (preSum * eval1.dimentions[dimention]);
+
+			NumObject sums = NumObject(newDimentions, 0.0);
+			for(int i = 0; i < preSum; i++){
+				for(int x = 0; x < eval1.dimentions[dimention]; x++){
+					for(int z = 0; z < postSum; z++){
+						sums.values[i * postSum + z] += eval1.values[i * postSum * eval1.dimentions[dimention] + x * postSum + z];
+					}
 				}
 			}
-		}
 
-		inputs[0]->derive(ans);
+			NumObject ans = NumObject(eval1.dimentions);
+			for(int i = 0; i < preSum; i++){
+				for(int x = 0; x < eval1.dimentions[dimention]; x++){
+					for(int z = 0; z < postSum; z++){
+						ans.values.push_back(derivativeMemo[t].values[i * postSum * eval1.dimentions[dimention] + x * postSum + z] * (tempSeed.values[(i * postSum * eval1.dimentions[dimention] + x * postSum + z) % tempSeed.values.size()] - sums.values[i * postSum + z]));
+					}
+				}
+			}
+
+			inputs[0]->derive(ans, t, tf);
+		}
 	}
 }
 
@@ -190,16 +215,36 @@ double TanH::operation(vector<double>& a){
 	return 2.0 / (1.0 + exp(-2.0 * a[0])) - 1.0;
 }
 
-void TanH::derive(NumObject& seed){
-	if (typeid(*inputs[0]) != typeid(Constant)){
-		vector<NumObject> items1 = {seed, derivativeMemo};
-		NumObject eval1 = mapVals(this, &TanH::deriveOperation1, items1);
-		inputs[0]->derive(eval1);
+void TanH::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			vector<NumObject> items1 = {tempSeed, derivativeMemo[t]};
+			NumObject eval1 = mapVals(this, &TanH::deriveOperation1, items1);
+			inputs[0]->derive(eval1, t, tf);
+		}
 	}
 }
 
 double TanH::deriveOperation1(vector<double>& a){
 	return a[0] * (1.0 - a[1] * a[1]);
+}
+
+double Softsign::operation(vector<double>& a){
+	return a[0] / (1.0 + abs(a[0]));
+}
+
+void Softsign::derive(NumObject& seed, int t, int tf){
+	if(sumSeed(seed)){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
+			NumObject eval1 = mapVals(this, &Softsign::deriveOperation1, items1);
+			inputs[0]->derive(eval1, t, tf);
+		}
+	}
+}
+
+double Softsign::deriveOperation1(vector<double>& a){
+	return a[0] / ((1.0 + abs(a[1])) * (1.0 + abs(a[1])));
 }
 
 

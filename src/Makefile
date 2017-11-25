@@ -1,6 +1,6 @@
 CC = g++
 CFLAGS  = -g -Wall -O2 -std=c++11
-OBJECTS = Node.o Math.o HelperFunctions.o MatrixMath.o Optimizers.o Activations.o CostFunctions.o MNISTLoad.o Regularization.o main.o
+OBJECTS = Node.o Math.o HelperFunctions.o MatrixMath.o Optimizers.o Activations.o CostFunctions.o MNISTLoad.o Regularization.o TextLoad.o Rubix.o main.o
 
 
 all: MLLib
@@ -35,7 +35,13 @@ MNISTLoad.o: MNISTLoad.cpp MNISTLoad.hpp Node.hpp
 Regularization.o: Regularization.cpp Regularization.hpp Node.hpp MapVals.hpp
 	$(CC) $(CFLAGS) -c Regularization.cpp
 
-main.o: main.cpp Node.hpp Math.hpp MapVals.hpp HelperFunctions.hpp MatrixMath.hpp Optimizers.hpp Activations.hpp CostFunctions.hpp Regularization.hpp
+TextLoad.o: TextLoad.cpp TextLoad.hpp Node.hpp
+	$(CC) $(CFLAGS) -c TextLoad.cpp
+
+Rubix.o: Rubix.cpp Rubix.hpp Node.hpp
+	$(CC) $(CFLAGS) -c Rubix.cpp
+
+main.o: main.cpp Node.hpp Math.hpp MapVals.hpp HelperFunctions.hpp MatrixMath.hpp Optimizers.hpp Activations.hpp CostFunctions.hpp Regularization.hpp TextLoad.hpp Rubix.hpp
 	$(CC) $(CFLAGS) -c main.cpp
 
 clean:

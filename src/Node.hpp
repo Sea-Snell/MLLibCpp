@@ -32,13 +32,19 @@ public:
 class Node{
 public:
 	vector<Node*> inputs;
+	int outCount;
+	int dCallCount;
+	int gCallCount;
+	NumObject tempSeed;
 	string name;
-	NumObject derivativeMemo;
+	vector<NumObject> derivativeMemo;
 
-	virtual NumObject getValue() = 0;
+	virtual NumObject getValue(int t = 0, int tf = 0) = 0;
 	virtual string describe();
-	virtual void derive(NumObject& seed) = 0;
-	NumObject& memoize(NumObject& val);
+	virtual void derive(NumObject& seed, int t = 0, int tf = 0) = 0;
+	NumObject& memoize(NumObject& val, int t = 0, int tf = 0);
+	bool sumSeed(NumObject& seed);
+	double addSeedOperation(vector<double>& a);
 
 	// Node* operator+(Node& param);
 	// Node* operator-(Node& param);
@@ -50,17 +56,16 @@ class Constant: public Node{
 public:
 	NumObject value;
 	Constant(NumObject val, string placeHolder = "");
-	NumObject getValue();
+	NumObject getValue(int t = 0, int tf = 0);
 	string describe();
-	void derive(NumObject& seed);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 };
 
 class Variable: public Constant{
 public:
 	NumObject derivative;
 	Variable(NumObject val, string placeHolder = "");
-	void derive(NumObject& seed);
-	double deriveOperation(vector<double>& a);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 };
 
 NumObject reduceSumByDimention(NumObject& nums, int byDimention);
@@ -68,7 +73,7 @@ NumObject reduceSumByDimention(NumObject& nums, int byDimention);
 class BasicOperator: public Node{
 public:
 	BasicOperator(Node* a, Node* b);
-	NumObject getValue();
+	NumObject getValue(int t = 0, int tf = 0);
 	virtual double operation(vector<double>& a) = 0;
 	virtual string describe();
 };
@@ -76,7 +81,7 @@ public:
 class BasicFunction: public Node{
 public:
 	BasicFunction(Node* a);
-	NumObject getValue();
+	NumObject getValue(int t = 0, int tf = 0);
 	virtual double operation(vector<double>& a) = 0;
 };
 

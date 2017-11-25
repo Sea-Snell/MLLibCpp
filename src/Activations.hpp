@@ -7,7 +7,7 @@ public:
 	Sigmoid(Node* a): BasicFunction(a){name = "Sigmoid";}
 
 	double operation(vector<double>& a);
-	void derive(NumObject& seed);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	double deriveOperation1(vector<double>& a);
 };
 
@@ -16,7 +16,7 @@ public:
 	ReLU(Node* a): BasicFunction(a){name = "ReLU";}
 
 	double operation(vector<double>& a);
-	void derive(NumObject& seed);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	double deriveOperation1(vector<double>& a);
 };
 
@@ -25,7 +25,7 @@ public:
 	LeakyReLU(Node* a): BasicFunction(a){name = "LeakyReLU";}
 
 	double operation(vector<double>& a);
-	void derive(NumObject& seed);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	double deriveOperation1(vector<double>& a);
 };
 
@@ -34,7 +34,7 @@ public:
 	Gaussian(Node* a): BasicFunction(a){name = "Gaussian";}
 
 	double operation(vector<double>& a);
-	void derive(NumObject& seed);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	double deriveOperation1(vector<double>& a);
 };
 
@@ -44,9 +44,9 @@ public:
 
 	Softmax(Node* a, int dimentionVal = -1);
 	
-	NumObject getValue();
+	NumObject getValue(int t = 0, int tf = 0);
 	double operation1(vector<double>& a);
-	void derive(NumObject& seed);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	double deriveOperation1(vector<double>& a);
 };
 
@@ -55,7 +55,16 @@ public:
 	TanH(Node* a): BasicFunction(a){name = "TanH";}
 
 	double operation(vector<double>& a);
-	void derive(NumObject& seed);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
+	double deriveOperation1(vector<double>& a);
+};
+
+class Softsign: public BasicFunction{
+public:
+	Softsign(Node* a): BasicFunction(a){name = "Softsign";}
+
+	double operation(vector<double>& a);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	double deriveOperation1(vector<double>& a);
 };
 

@@ -8,8 +8,8 @@ public:
 	int size;
 
 	L2(Node* cost, vector<Node*> weights, int dataSize, double parameterVal);
-	NumObject getValue();
-	void derive(NumObject& seed);
+	NumObject getValue(int t = 0, int tf = 0);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	double operation(vector<double>& a);
 	string describe();
 };
@@ -17,8 +17,8 @@ public:
 class L1: public L2{
 public:
 	L1(Node* cost, vector<Node*> weights, int dataSize, double parameterVal): L2(cost, weights, dataSize, parameterVal){name = "L1";}
-	NumObject getValue();
-	void derive(NumObject& seed);
+	NumObject getValue(int t = 0, int tf = 0);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	double operation(vector<double>& a);
 };
 
@@ -32,9 +32,9 @@ public:
 	bool training;
 
 	Dropout(Node* a, int dimentionVal, double probabilityVal);
-	NumObject getValue();
+	NumObject getValue(int t = 0, int tf = 0);
 	void updateDrop(int size);
-	void derive(NumObject& seed);
+	void derive(NumObject& seed, int t = 0, int tf = 0);
 	string describe();
 };
 

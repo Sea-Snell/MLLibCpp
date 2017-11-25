@@ -140,18 +140,56 @@ string Node::describe(){
 	return ans;
 }
 
-NumObject& Node::memoize(NumObject& val){
-	derivativeMemo = val;
+NumObject& Node::memoize(NumObject& val, int t, int tf){
+	if(t == 0){
+		derivativeMemo.clear();
+		derivativeMemo.resize(tf + 1);
+	}
+	derivativeMemo[t] = val;
 	return val;
+}
+
+bool Node::sumSeed(NumObject& seed){
+	dCallCount += 1;
+	if(dCallCount == 1){
+		tempSeed = seed;
+	}
+	else{
+		vector<NumObject> tempItems = {seed, tempSeed};
+		tempSeed = mapVals(this, &Node::addSeedOperation, tempItems);
+	}
+	if(dCallCount >= outCount){
+		dCallCount = 0;
+		return true;
+	}
+	return false;
+}
+
+double Node::addSeedOperation(vector<double>& a){
+	return a[0] + a[1];
 }
 
 Constant::Constant(NumObject val, string placeHolder){
 	value = val;
 	name = placeHolder;
+	outCount = 0;
+	dCallCount = 0;
+	gCallCount = 0;
 }
 
-NumObject Constant::getValue(){
-	return memoize(value);
+NumObject Constant::getValue(int t, int tf){
+	gCallCount += 1;
+	if(gCallCount > 1){
+		if(gCallCount >= outCount){
+			gCallCount = 0;
+		}
+		return derivativeMemo[t];
+	}
+	if(gCallCount >= outCount){
+		gCallCount = 0;
+	}
+
+	return memoize(value, t, tf);
 }
 
 string Constant::describe(){
@@ -161,7 +199,7 @@ string Constant::describe(){
 	return name;
 }
 
-void Constant::derive(NumObject& seed){
+void Constant::derive(NumObject& seed, int t, int tf){
 	return;
 }
 
@@ -169,13 +207,22 @@ Variable::Variable(NumObject val, string placeHolder): Constant(val, placeHolder
 	derivative = NumObject(value.dimentions, 0.0);
 }
 
-void Variable::derive(NumObject& seed){
-	vector<NumObject> items = {derivative, seed};
-	derivative = mapVals(this, &Variable::deriveOperation, items);
-}
+void Variable::derive(NumObject& seed, int t, int tf){
+	dCallCount += 1;
+	if(dCallCount == 1 && t == tf){
+		for(int i = 0; i < derivative.values.size(); i++){
+			derivative.values[i] = seed.values[i % seed.values.size()];
+		}
+	}
+	else{
+		for(int i = 0; i < derivative.values.size(); i++){
+			derivative.values[i] += seed.values[i % seed.values.size()];
+		}
+	}
 
-double Variable::deriveOperation(vector<double>& a){
-	return a[0] + a[1];
+	if(dCallCount >= outCount){
+		dCallCount = 0;
+	}
 }
 
 NumObject reduceSumByDimention(NumObject& nums, int byDimention){
@@ -208,14 +255,29 @@ NumObject reduceSumByDimention(NumObject& nums, int byDimention){
 }
 
 BasicOperator::BasicOperator(Node* a, Node* b){
+	outCount = 0;
 	inputs.push_back(a);
 	inputs.push_back(b);
+	a->outCount += 1;
+	b->outCount += 1;
+	dCallCount = 0;
+	gCallCount = 0;
 }
 
-NumObject BasicOperator::getValue(){
-	vector<NumObject> items = {inputs[0]->getValue(), inputs[1]->getValue()};
+NumObject BasicOperator::getValue(int t, int tf){
+	gCallCount += 1;
+	if(gCallCount > 1){
+		if(gCallCount >= outCount){
+			gCallCount = 0;
+		}
+		return derivativeMemo[t];
+	}
+	if(gCallCount >= outCount){
+		gCallCount = 0;
+	}
+	vector<NumObject> items = {inputs[0]->getValue(t, tf), inputs[1]->getValue(t, tf)};
 	NumObject ans = mapVals(this, &BasicOperator::operation, items);
-	return memoize(ans);
+	return memoize(ans, t, tf);
 }
 
 string BasicOperator::describe(){
@@ -223,13 +285,27 @@ string BasicOperator::describe(){
 }
 
 BasicFunction::BasicFunction(Node* a){
+	outCount = 0;
 	inputs.push_back(a);
+	a->outCount += 1;
+	dCallCount = 0;
+	gCallCount = 0;
 }
 
-NumObject BasicFunction::getValue(){
-	vector<NumObject> items = {inputs[0]->getValue()};
+NumObject BasicFunction::getValue(int t, int tf){
+	gCallCount += 1;
+	if(gCallCount > 1){
+		if(gCallCount >= outCount){
+			gCallCount = 0;
+		}
+		return derivativeMemo[t];
+	}
+	if(gCallCount >= outCount){
+		gCallCount = 0;
+	}
+	vector<NumObject> items = {inputs[0]->getValue(t, tf)};
 	NumObject ans = mapVals(this, &BasicFunction::operation, items);
-	return memoize(ans);
+	return memoize(ans, t, tf);
 }
 
 
