@@ -9,42 +9,90 @@
 #include <math.h>
 #include <stdlib.h>
 #include <cmath>
+#include "openCL.hpp"
 using namespace std;
+
+extern cl::Context context;
+extern cl::CommandQueue queue;
+extern cl::Program program;
+
+extern cl::make_kernel<cl::Buffer> zeroBuffer;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> reduceSum;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> explodeUp;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> add;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> subtract;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> multiply;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divide;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> pow_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> ln;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> exp_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> multiplyDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divideDerivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divideDerivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative1;
+
+void initialize();
 
 class NumObject{
 public:
 	int rank;
+	int size;
 	vector<int> dimentions;
-	vector<double> values;
+	vector<float> values;
 
 	NumObject();
-	NumObject(double val);
-	NumObject(vector<double> val, vector<int> dimentionsList);
-	NumObject(vector<int> dimentionsList, double fill);
+	NumObject(float val);
+	NumObject(vector<float> val, vector<int> dimentionsList);
+	NumObject(vector<int> dimentionsList, float fill);
 	NumObject(vector<int> dimentionsList);
 
 	string describe();
-	NumObject getIndex(vector<int> idx);
-	void setIndex(vector<int> idx, vector<double> val);
-	void setIndex(vector<int> idx, double val);
+};
+
+class GPUDimentions{
+public:
+	int rank;
+	int size;
+	vector<int> dimentions;
+	cl::Buffer dimBuf;
+
+	GPUDimentions();
+	GPUDimentions(int rankVal, int sizeVal, vector<int> dimentionsVals);
+	void setBuf();
 };
 
 class Node{
 public:
 	vector<Node*> inputs;
-	int outCount;
-	int dCallCount;
-	int gCallCount;
-	NumObject tempSeed;
+	vector<Node*> outputs;
 	string name;
-	vector<NumObject> derivativeMemo;
 
-	virtual NumObject getValue(int t = 0, int tf = 0) = 0;
+	GPUDimentions resultDims;
+	cl::Buffer result;
+
+	GPUDimentions seedDims;
+	cl::Buffer seed;
+
+	vector<GPUDimentions> outDims;
+	vector<cl::Buffer> out;
+
+	int outCount;
+	int getCount;
+
+	Node();
+	virtual void getValue() = 0;
+	virtual void getDimentions() = 0;
+	virtual void deriveDimentions(GPUDimentions* tempSeed) = 0;
 	virtual string describe();
-	virtual void derive(NumObject& seed, int t = 0, int tf = 0) = 0;
-	NumObject& memoize(NumObject& val, int t = 0, int tf = 0);
-	bool sumSeed(NumObject& seed);
-	double addSeedOperation(vector<double>& a);
+	void clean();
+
+	void seedDimAdd(GPUDimentions* tempSeed);
+	GPUDimentions getMaxDimentions(vector<GPUDimentions*> dimentionSet);
+
+	virtual void derive() = 0;
 
 	// Node* operator+(Node& param);
 	// Node* operator-(Node& param);
@@ -56,33 +104,31 @@ class Constant: public Node{
 public:
 	NumObject value;
 	Constant(NumObject val, string placeHolder = "");
-	NumObject getValue(int t = 0, int tf = 0);
+	void getValue();
+	void getDimentions();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+	void updateHostVals();
 	string describe();
-	void derive(NumObject& seed, int t = 0, int tf = 0);
 };
 
 class Variable: public Constant{
 public:
-	NumObject derivative;
-	Variable(NumObject val, string placeHolder = "");
-	void derive(NumObject& seed, int t = 0, int tf = 0);
+	Variable(NumObject val, string placeHolder = ""): Constant(val, placeHolder){}
+	void deriveDimentions(GPUDimentions* tempSeed);
 };
-
-NumObject reduceSumByDimention(NumObject& nums, int byDimention);
 
 class BasicOperator: public Node{
 public:
 	BasicOperator(Node* a, Node* b);
-	NumObject getValue(int t = 0, int tf = 0);
-	virtual double operation(vector<double>& a) = 0;
+	void getDimentions();
 	virtual string describe();
 };
 
 class BasicFunction: public Node{
 public:
 	BasicFunction(Node* a);
-	NumObject getValue(int t = 0, int tf = 0);
-	virtual double operation(vector<double>& a) = 0;
+	void getDimentions();
 };
 
 

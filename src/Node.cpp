@@ -1,28 +1,113 @@
 #include "Node.hpp"
-#include "Math.hpp"
-#include "MapVals.hpp"
+
+cl::Context context;
+cl::CommandQueue queue;
+cl::Program program;
+
+cl::make_kernel<cl::Buffer> zeroBuffer(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> reduceSum(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> explodeUp(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> add(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> subtract(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> multiply(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divide(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> pow_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> ln(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> exp_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> multiplyDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divideDerivative0(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divideDerivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative0(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative1(cl::Kernel(program, ""));
+
+void initialize(){
+	vector<cl::Platform> allPlatforms;
+	cl::Platform::get(&allPlatforms);
+
+	cl::Platform defaultPlatform = allPlatforms[0];
+	cout << "Using platform: " << defaultPlatform.getInfo<CL_PLATFORM_NAME>() << endl;
+
+	vector<cl::Device> allDevices;
+	vector<cl::Device> tempDevices;
+	defaultPlatform.getDevices(CL_DEVICE_TYPE_ALL, &tempDevices);
+	allDevices.push_back(tempDevices[1]);
+
+	cl::Device defaultDevice = allDevices[0];
+	cout << "Using device: " << defaultDevice.getInfo<CL_DEVICE_NAME>() << endl;
+
+	context = {defaultDevice};
+
+	cl::Program::Sources sources;
+
+	FILE* fp;
+	char* source_str;
+	size_t program_size;
+
+	fp = fopen("operations.cl.hpp", "rb");
+	fseek(fp, 0, SEEK_END);
+	program_size = ftell(fp);
+	rewind(fp);
+	source_str = (char*)malloc(program_size + 1);
+	source_str[program_size] = '\0';
+	fread(source_str, sizeof(char), program_size, fp);
+	fclose(fp);
+
+	sources.push_back(make_pair(source_str, program_size));
+
+	program = {context, sources};
+
+	if (program.build(allDevices) != CL_SUCCESS){
+		cout << " Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(defaultDevice) << endl;
+		exit(1);
+	}
+
+	queue = {context, defaultDevice};
+
+	zeroBuffer = cl::make_kernel<cl::Buffer>(cl::Kernel(program, "zeroBuffer"));
+	reduceSum = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "reduceSum"));
+	explodeUp = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "explodeUp"));
+	add = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "add"));
+	subtract = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "subtract"));
+	multiply = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "multiply"));
+	divide = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "divide"));
+	pow_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "pow_"));
+	ln = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "ln"));
+	exp_ = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "exp_"));
+	addDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "addDerivative"));
+	subtractDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "subtractDerivative1"));
+	multiplyDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "multiplyDerivative"));
+	divideDerivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "divideDerivative0"));
+	divideDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "divideDerivative1"));
+	powDerivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "powDerivative0"));
+	powDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "powDerivative1"));
+}
 
 NumObject::NumObject(){}
 
-NumObject::NumObject(double val){
+NumObject::NumObject(float val){
 	rank = 0;
+	size = 1;
 	values.push_back(val);
 }
 
-NumObject::NumObject(vector<double> val, vector<int> dimentionsList){
+NumObject::NumObject(vector<float> val, vector<int> dimentionsList){
 	rank = dimentionsList.size();
+	size = val.size();
 	dimentions = dimentionsList;
 	values = val;
 }
 
-NumObject::NumObject(vector<int> dimentionsList, double fill){
+NumObject::NumObject(vector<int> dimentionsList, float fill){
 	rank = dimentionsList.size();
 	dimentions = dimentionsList;
 
-	int tempSize = 1.0;
+	int tempSize = 1;
 	for (int i = 0; i < rank; i++){
 		tempSize *= dimentions[i];
 	}
+	size = tempSize;
 
 	values.resize(tempSize, fill);
 }
@@ -31,10 +116,11 @@ NumObject::NumObject(vector<int> dimentionsList){
 	rank = dimentionsList.size();
 	dimentions = dimentionsList;
 
-	int tempSize = 1.0;
+	int tempSize = 1;
 	for (int i = 0; i < rank; i++){
 		tempSize *= dimentions[i];
 	}
+	size = tempSize;
 
 	values.reserve(tempSize);
 }
@@ -73,59 +159,34 @@ string NumObject::describe(){
 	return returnVal;
 }
 
-NumObject NumObject::getIndex(vector<int> idx){
-	int startIdx = 0;
-	int endIdx = 0;
-	int temp = 0;
-	int currentProduct = 1;
-	vector<int> newDimentions;
-
-	for(int i = dimentions.size() - 1; i >= 0; i--){
-		if(i < idx.size()){
-			if (i == idx.size() - 1){
-				temp = currentProduct;
-			}
-			startIdx += idx[i] * currentProduct;
-		}
-		else{
-			newDimentions.push_back(dimentions[dimentions.size() + idx.size() - 1 - i]);
-		}
-		currentProduct *= dimentions[i];
-	}
-
-	endIdx = startIdx + temp - 1;
-
-
-	vector<double> newVals (begin(values) + startIdx, begin(values) + endIdx + 1);
-
-	return NumObject(newVals, newDimentions);
+GPUDimentions::GPUDimentions(){
+	rank = 0;
+	size = 1;
+	dimentions = vector<int>{};
 }
 
-void NumObject::setIndex(vector<int> idx, vector<double> val){
-	int startIdx = 0;
-	int currentProduct = 1;
-
-	for(int i = dimentions.size() - 1; i >= 0; i--){
-		if(i < idx.size()){
-			startIdx += idx[i] * currentProduct;
-		}
-		currentProduct *= dimentions[i];
-	}
-
-	for(int i = 0; i < val.size(); i++){
-		values[startIdx + i] = val[i];
-	}
+GPUDimentions::GPUDimentions(int rankVal, int sizeVal, vector<int> dimentionsVals){
+	rank = rankVal;
+	size = sizeVal;
+	dimentions = dimentionsVals;
+	setBuf();
 }
 
-void NumObject::setIndex(vector<int> idx, double val){
-	int startIdx = 0;
-	int currentProduct = 1;
-
-	for(int i = dimentions.size() - 1; i >= 0; i--){
-		startIdx += idx[i] * currentProduct;
-		currentProduct *= dimentions[i];
+void GPUDimentions::setBuf(){
+	dimBuf = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int) * (rank + 2));
+	vector<int> tempDimentions;
+	tempDimentions.reserve(rank + 2);
+	tempDimentions.push_back(size);
+	tempDimentions.push_back(rank);
+	for (int i = 0; i < rank; i++){
+		tempDimentions.push_back(dimentions[i]);
 	}
-	values[startIdx] = val;
+	queue.enqueueWriteBuffer(dimBuf, CL_TRUE, 0, sizeof(int) * (rank + 2), &tempDimentions[0]);
+}
+
+Node::Node(){
+	outCount = 0;
+	getCount = 0;
 }
 
 string Node::describe(){
@@ -140,56 +201,86 @@ string Node::describe(){
 	return ans;
 }
 
-NumObject& Node::memoize(NumObject& val, int t, int tf){
-	if(t == 0){
-		derivativeMemo.clear();
-		derivativeMemo.resize(tf + 1);
+void Node::clean(){
+	if (getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
 	}
-	derivativeMemo[t] = val;
-	return val;
+	seedDims = GPUDimentions();
+	resultDims = GPUDimentions();
+	outDims = {};
+	out = {};
+
+	for (int i = 0; i < inputs.size(); i++){
+		inputs[i]->clean();
+	}
+	getCount = (getCount + 1) % outCount;
 }
 
-bool Node::sumSeed(NumObject& seed){
-	dCallCount += 1;
-	if(dCallCount == 1){
-		tempSeed = seed;
+void Node::seedDimAdd(GPUDimentions* tempSeed){
+	if (tempSeed->rank > seedDims.rank){
+		if (tempSeed->rank > resultDims.rank){
+			seedDims.rank = resultDims.rank;
+			seedDims.size = resultDims.size;
+			seedDims.dimentions = resultDims.dimentions;
+		}
+		else{
+			seedDims.rank = tempSeed->rank;
+			seedDims.size = tempSeed->size;
+			seedDims.dimentions = tempSeed->dimentions;
+		}
 	}
-	else{
-		vector<NumObject> tempItems = {seed, tempSeed};
-		tempSeed = mapVals(this, &Node::addSeedOperation, tempItems);
+
+
+	if (getCount == 0){
+		seedDims.setBuf();
+		seed = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * seedDims.size);
 	}
-	if(dCallCount >= outCount){
-		dCallCount = 0;
-		return true;
-	}
-	return false;
 }
 
-double Node::addSeedOperation(vector<double>& a){
-	return a[0] + a[1];
+GPUDimentions Node::getMaxDimentions(vector<GPUDimentions*> dimentionSet){
+	int maxPos = 0;
+	int maxRank = dimentionSet[0]->rank;
+	for (int i = 1; i < dimentionSet.size(); i++){
+		if (dimentionSet[i]->rank > maxRank){
+			maxRank = dimentionSet[i]->rank;
+			maxPos = i;
+		}
+	}
+	return *dimentionSet[maxPos];
 }
 
 Constant::Constant(NumObject val, string placeHolder){
-	value = val;
 	name = placeHolder;
-	outCount = 0;
-	dCallCount = 0;
-	gCallCount = 0;
+	value = val;
 }
 
-NumObject Constant::getValue(int t, int tf){
-	gCallCount += 1;
-	if(gCallCount > 1){
-		if(gCallCount >= outCount){
-			gCallCount = 0;
-		}
-		return derivativeMemo[t];
-	}
-	if(gCallCount >= outCount){
-		gCallCount = 0;
+void Constant::getValue(){
+	return;
+}
+
+void Constant::getDimentions(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
 	}
 
-	return memoize(value, t, tf);
+	resultDims.rank = value.rank;
+	resultDims.size = value.size;
+	resultDims.dimentions = value.dimentions;
+	resultDims.setBuf();
+
+	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	queue.enqueueWriteBuffer(result, CL_TRUE, 0, sizeof(float) * resultDims.size, &value.values[0]);
+	getCount = (getCount + 1) % outCount;
+}
+
+void Constant::deriveDimentions(GPUDimentions* tempSeed){
+	return;
+}
+
+void Constant::updateHostVals(){
+	queue.enqueueReadBuffer(result, CL_TRUE, 0, sizeof(float) * resultDims.size, &value.values[0]);
 }
 
 string Constant::describe(){
@@ -199,85 +290,46 @@ string Constant::describe(){
 	return name;
 }
 
-void Constant::derive(NumObject& seed, int t, int tf){
+void Constant::derive(){
 	return;
 }
 
-Variable::Variable(NumObject val, string placeHolder): Constant(val, placeHolder){
-	derivative = NumObject(value.dimentions, 0.0);
-}
-
-void Variable::derive(NumObject& seed, int t, int tf){
-	dCallCount += 1;
-	if(dCallCount == 1 && t == tf){
-		for(int i = 0; i < derivative.values.size(); i++){
-			derivative.values[i] = seed.values[i % seed.values.size()];
-		}
-	}
-	else{
-		for(int i = 0; i < derivative.values.size(); i++){
-			derivative.values[i] += seed.values[i % seed.values.size()];
-		}
-	}
-
-	if(dCallCount >= outCount){
-		dCallCount = 0;
-	}
-}
-
-NumObject reduceSumByDimention(NumObject& nums, int byDimention){
-	if(byDimention <= 0){
-		return nums;
-	}
-
-	int resultSize = nums.values.size();
-	vector<int> resultDimentions;
-	for(int i = 0; i < nums.rank; i++){
-		if (i < byDimention){
-			resultSize /= nums.dimentions[i];
-		}
-		else{
-			resultDimentions.push_back(nums.dimentions[i]);
-		}
-	}
-
-	NumObject answer = NumObject(resultDimentions);
-	for(int i = 0; i < nums.values.size(); i++){
-		if (i < resultSize){
-			answer.values.push_back(nums.values[i]);
-		}
-		else{
-			answer.values[i % resultSize] += nums.values[i];
-		}
-	}
-
-	return answer;
+void Variable::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
 }
 
 BasicOperator::BasicOperator(Node* a, Node* b){
-	outCount = 0;
 	inputs.push_back(a);
 	inputs.push_back(b);
+	a->outputs.push_back(this);
+	b->outputs.push_back(this);
 	a->outCount += 1;
 	b->outCount += 1;
-	dCallCount = 0;
-	gCallCount = 0;
 }
 
-NumObject BasicOperator::getValue(int t, int tf){
-	gCallCount += 1;
-	if(gCallCount > 1){
-		if(gCallCount >= outCount){
-			gCallCount = 0;
-		}
-		return derivativeMemo[t];
+void BasicOperator::getDimentions(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
 	}
-	if(gCallCount >= outCount){
-		gCallCount = 0;
+
+	inputs[0]->getDimentions();
+	inputs[1]->getDimentions();
+
+	resultDims.rank = max(inputs[0]->resultDims.rank, inputs[1]->resultDims.rank);
+	resultDims.size = max(inputs[0]->resultDims.size, inputs[1]->resultDims.size);
+	if (inputs[0]->resultDims.rank > inputs[1]->resultDims.rank){
+		resultDims.dimentions = inputs[0]->resultDims.dimentions;
 	}
-	vector<NumObject> items = {inputs[0]->getValue(t, tf), inputs[1]->getValue(t, tf)};
-	NumObject ans = mapVals(this, &BasicOperator::operation, items);
-	return memoize(ans, t, tf);
+	else{
+		resultDims.dimentions = inputs[1]->resultDims.dimentions;
+	}
+
+	resultDims.setBuf();
+
+	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	getCount = (getCount + 1) % outCount;
 }
 
 string BasicOperator::describe(){
@@ -285,27 +337,29 @@ string BasicOperator::describe(){
 }
 
 BasicFunction::BasicFunction(Node* a){
-	outCount = 0;
 	inputs.push_back(a);
+	a->outputs.push_back(this);
 	a->outCount += 1;
-	dCallCount = 0;
-	gCallCount = 0;
 }
 
-NumObject BasicFunction::getValue(int t, int tf){
-	gCallCount += 1;
-	if(gCallCount > 1){
-		if(gCallCount >= outCount){
-			gCallCount = 0;
-		}
-		return derivativeMemo[t];
+void BasicFunction::getDimentions(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
 	}
-	if(gCallCount >= outCount){
-		gCallCount = 0;
-	}
-	vector<NumObject> items = {inputs[0]->getValue(t, tf)};
-	NumObject ans = mapVals(this, &BasicFunction::operation, items);
-	return memoize(ans, t, tf);
+
+	inputs[0]->getDimentions();
+
+	resultDims.rank = inputs[0]->resultDims.rank;
+	resultDims.size = inputs[0]->resultDims.size;
+	resultDims.dimentions = inputs[0]->resultDims.dimentions;
+
+	resultDims.setBuf();
+
+	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	getCount = (getCount + 1) % outCount;
 }
+
+
 
 
