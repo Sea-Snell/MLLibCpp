@@ -23,9 +23,9 @@ int main(){
 }
 
 void linearReg(){
-	Constant&& xData = Constant(gaussianRandomNums(vector<int>{10000, 10001}, -10.0, 10.0));
+	Constant&& xData = Constant(gaussianRandomNums(vector<int>{100, 100001}, -10.0, 10.0));
 	for(int i = 0; i < xData.value.dimentions[0]; i++){
-		xData.value.values[i * xData.value.dimentions[1] + 10000] = 1.0;
+		xData.value.values[i * xData.value.dimentions[1] + 100000] = 1.0;
 	}
 
 	Node* yValExpression = new Sum(new Multiply(&xData, new Constant(NumObject(0.5))), 1);
@@ -33,7 +33,7 @@ void linearReg(){
 	Constant&& yData = Constant(getValue(yValExpression));
 	clearHistory(&xData);
 
-	Variable&& weights = Variable(gaussianRandomNums(vector<int>{10001}, -0.5, 0.5));
+	Variable&& weights = Variable(gaussianRandomNums(vector<int>{100001}, -0.5, 0.5));
 
 	Node* hypothesis = new MatMul(&xData, &weights);
 	Node* cost = new MeanSquared(hypothesis, &yData);
@@ -45,7 +45,7 @@ void linearReg(){
 	int start = clock();
 	for(int i = 0; i < 1000; i++){
 		derive(cost);
-		gradientDescent(variables, 0.0000001);
+		gradientDescent(variables, 0.000000001);
 
 		// if(i % 100 == 0){
 		// 	cout << showValue(cost).describe() << endl;
@@ -53,7 +53,6 @@ void linearReg(){
 	}
 	int end = clock();
 	cout <<  "Time: " << (end - start) / double(CLOCKS_PER_SEC) << endl;
-	cout << showValue(cost).describe() << endl;
 	// weights.updateHostVals();
 	// cout << weights.describe() << endl;
 }
