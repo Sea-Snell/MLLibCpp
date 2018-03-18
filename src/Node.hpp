@@ -44,6 +44,7 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> meanSquared;
 
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1;
@@ -74,6 +75,9 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> maxDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanSquaredDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivativeSmallSeed;
+
 
 void initialize();
 
@@ -103,6 +107,7 @@ public:
 	GPUDimentions();
 	GPUDimentions(int rankVal, int sizeVal, vector<int> dimentionsVals);
 	void setBuf();
+	string describe();
 };
 
 class Node{

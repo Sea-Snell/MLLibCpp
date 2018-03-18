@@ -4,43 +4,44 @@
 
 class MeanSquared: public Node{
 public:
-	vector<NumObject> differenceMemo;
+	cl::Buffer differenceMemo;
+	cl::Buffer diffSquared;
 	int dimention;
+	int preSum;
 
 	MeanSquared(Node* hypothesis, Node* y, int dimentionVal = 0);
-	NumObject getValue(int t = 0, int tf = 0);
-	double differenceOperation(vector<double>& a);
-	double powerOperation(vector<double>& a);
-	void derive(NumObject& seed, int t = 0, int tf = 0);
-	double deriveOperation1(vector<double>& a);
+	void getDimentions();
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
 	string describe();
 };
 
 
-class CrossEntropy: public Node{
-public:
-	int dimention;
+// class CrossEntropy: public Node{
+// public:
+// 	int dimention;
 
-	CrossEntropy(Node* hypothesis, Node* y, int dimentionVal = 0);
-	NumObject getValue(int t = 0, int tf = 0);
-	double operation(vector<double>& a);
-	void derive(NumObject& seed, int t = 0, int tf = 0);
-	double deriveOperation1(vector<double>& a);
-	string describe();
-};
+// 	CrossEntropy(Node* hypothesis, Node* y, int dimentionVal = 0);
+// 	NumObject getValue(int t = 0, int tf = 0);
+// 	double operation(vector<double>& a);
+// 	void derive(NumObject& seed, int t = 0, int tf = 0);
+// 	double deriveOperation1(vector<double>& a);
+// 	string describe();
+// };
 
-class CrossEntropySoftmax: public Node{
-public:
-	int dimention;
-	int meanDimention;
-	vector<NumObject> softmaxMemo;
+// class CrossEntropySoftmax: public Node{
+// public:
+// 	int dimention;
+// 	int meanDimention;
+// 	vector<NumObject> softmaxMemo;
 
-	CrossEntropySoftmax(Node* hypothesis, Node* y, int dimentionVal = -1, int meanDimentionVal = 0);
-	NumObject getValue(int t = 0, int tf = 0);
-	double operation1(vector<double>& a);
-	void derive(NumObject& seed, int t = 0, int tf = 0);
-	double deriveOperation1(vector<double>& a);
-	string describe();
-};
+// 	CrossEntropySoftmax(Node* hypothesis, Node* y, int dimentionVal = -1, int meanDimentionVal = 0);
+// 	NumObject getValue(int t = 0, int tf = 0);
+// 	double operation1(vector<double>& a);
+// 	void derive(NumObject& seed, int t = 0, int tf = 0);
+// 	double deriveOperation1(vector<double>& a);
+// 	string describe();
+// };
 
 #endif

@@ -126,6 +126,7 @@ void Multiply::getValue(){
 	}
 	inputs[0]->getValue();
 	inputs[1]->getValue();
+
 	multiply(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
 	getCount = (getCount + 1) % outCount;
 }

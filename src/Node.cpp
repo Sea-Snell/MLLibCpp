@@ -32,6 +32,7 @@ cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_(cl::Kernel(program, ""))
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> meanSquared(cl::Kernel(program, ""));
 
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1(cl::Kernel(program, ""));
@@ -62,6 +63,8 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1(cl::Kernel(
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> maxDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanSquaredDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivativeSmallSeed(cl::Kernel(program, ""));
 
 void initialize(){
 	vector<cl::Platform> allPlatforms;
@@ -134,6 +137,7 @@ void initialize(){
 	trans = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "trans"));
 	max_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "max_"));
 	min_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "min_"));
+	meanSquared = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "meanSquared"));
 
 	addDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "addDerivative"));
 	subtractDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "subtractDerivative1"));
@@ -164,6 +168,8 @@ void initialize(){
 	transDerivative2 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "transDerivative2"));
 	maxDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "maxDerivative"));
 	maxDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "maxDerivativeSmallSeed"));
+	meanSquaredDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "meanSquaredDerivative"));
+	meanSquaredDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "meanSquaredDerivativeSmallSeed"));
 }
 
 NumObject::NumObject(){}
@@ -264,6 +270,18 @@ void GPUDimentions::setBuf(){
 		tempDimentions.push_back(dimentions[i]);
 	}
 	queue.enqueueWriteBuffer(dimBuf, CL_TRUE, 0, sizeof(int) * (rank + 2), &tempDimentions[0]);
+}
+
+string GPUDimentions::describe(){
+	string ans = "size: " + to_string(size) + "\nrank: " + to_string(rank) + "\n" + "{";
+	for (int i = 0; i < rank; i++){
+		ans += to_string(dimentions[i]);
+		if (i != rank - 1){
+			ans += ", ";
+		}
+	}
+	ans += "}";
+	return ans;
 }
 
 Node::Node(){
