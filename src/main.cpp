@@ -3,584 +3,551 @@
 #include "HelperFunctions.hpp"
 #include "MatrixMath.hpp"
 #include "Optimizers.hpp"
-#include "Activations.hpp"
-#include "CostFunctions.hpp"
-#include "MNISTLoad.hpp"
-#include "Regularization.hpp"
-#include "TextLoad.hpp"
-#include <map>
-#include <iostream>
-#include <fstream>
-#include <dirent.h>
-#include <ctime>
+#include <time.h>
 
-
-void MNISTFFNN();
-vector<vector<double>> getTrain(int n);
-vector<vector<double>> getTest(int n);
+// void rubixNet();
+// void WordRNN(bool randomize);
+// void MNISTFFNN();
+// vector<NumObject> getTrain(int n);
+// vector<NumObject> getTest(int n);
 void linearReg();
-void autoEncoderMNISTNN();
-void LSTMRapper();
 
 int main(){
 
+	initialize();
+
 	linearReg();
-	
 
 	return 0;
 }
 
-void LSTMRapper(){
-	StepSongs songs = StepSongs();
-	vector<double> newSong = songs.getSong("Good Morning.txt");
-
-	int batchSize = 1;
-
-	Constant&& xData = Constant(0.0, "x");
-	xData.outDimentions = {batchSize, songs.numChars};
-	xData.outRank = 2;
-	xData.outSize = batchSize * songs.numChars;
-
-	Constant&& yData = Constant(0.0, "x");
-	yData.outDimentions = {batchSize, songs.numChars};
-	yData.outRank = 2;
-	yData.outSize = batchSize * songs.numChars;
-
-	Constant&& c1 = Constant(0.0, "c1");
-	c1.outDimentions = {batchSize, 200};
-	c1.outRank = 2;
-	c1.outSize = batchSize * 200;
-	c1.derivativeMemo.clear();
-	c1.derivativeMemo.resize(c1.outSize, 0.0);
-
-	Constant&& h1 = Constant(0.0, "h1");
-	h1.outDimentions = {batchSize, 200};
-	h1.outRank = 2;
-	h1.outSize = batchSize * 200;
-	h1.derivativeMemo.clear();
-	h1.derivativeMemo.resize(h1.outSize, 0.0);
-
-	Constant&& c2 = Constant(0.0, "c2");
-	c2.outDimentions = {batchSize, songs.numChars};
-	c2.outRank = 2;
-	c2.outSize = batchSize * songs.numChars;
-	c2.derivativeMemo.clear();
-	c2.derivativeMemo.resize(c2.outSize, 0.0);
-
-	Constant&& h2 = Constant(0.0, "h2");
-	h2.outDimentions = {batchSize, songs.numChars};
-	h2.outRank = 2;
-	h2.outSize = batchSize * songs.numChars;
-	h2.derivativeMemo.clear();
-	h2.derivativeMemo.resize(h2.outSize, 0.0);
-
-
-
-
-	Variable&& w11 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 200}, -0.1, 0.1));
-	Variable&& u11 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 200}, -0.1, 0.1));
-	Variable&& b11 = Variable(vector<double> {0.0}, vector<int> {200});
-	b11.derivativeMemo.clear();
-	b11.derivativeMemo.resize(200, 0.0);
-
-	Variable&& w21 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 200}, -0.1, 0.1));
-	Variable&& u21 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 200}, -0.1, 0.1));
-	Variable&& b21 = Variable(vector<double> {0.0}, vector<int> {200});
-	b21.derivativeMemo.clear();
-	b21.derivativeMemo.resize(200, 0.0);
-
-	Variable&& w31 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 200}, -0.1, 0.1));
-	Variable&& u31 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 200}, -0.1, 0.1));
-	Variable&& b31 = Variable(vector<double> {0.0}, vector<int> {200});
-	b31.derivativeMemo.clear();
-	b31.derivativeMemo.resize(200, 0.0);
-
-	Variable&& w41 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 200}, -0.1, 0.1));
-	Variable&& u41 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 200}, -0.1, 0.1));
-	Variable&& b41 = Variable(vector<double> {0.0}, vector<int> {200});
-	b41.derivativeMemo.clear();
-	b41.derivativeMemo.resize(200, 0.0);
-
-
-
-	Variable&& w12 = Variable(trunGaussianRandomNums(vector<int>{200, songs.numChars}, -0.1, 0.1));
-	Variable&& u12 = Variable(trunGaussianRandomNums(vector<int>{200, songs.numChars}, -0.1, 0.1));
-	Variable&& b12 = Variable(vector<double> {0.0}, vector<int> {songs.numChars});
-	b12.derivativeMemo.clear();
-	b12.derivativeMemo.resize(songs.numChars, 0.0);
-
-	Variable&& w22 = Variable(trunGaussianRandomNums(vector<int>{200, songs.numChars}, -0.1, 0.1));
-	Variable&& u22 = Variable(trunGaussianRandomNums(vector<int>{200, songs.numChars}, -0.1, 0.1));
-	Variable&& b22 = Variable(vector<double> {0.0}, vector<int> {songs.numChars});
-	b22.derivativeMemo.clear();
-	b22.derivativeMemo.resize(songs.numChars, 0.0);
-
-	Variable&& w32 = Variable(trunGaussianRandomNums(vector<int>{200, songs.numChars}, -0.1, 0.1));
-	Variable&& u32 = Variable(trunGaussianRandomNums(vector<int>{200, songs.numChars}, -0.1, 0.1));
-	Variable&& b32 = Variable(vector<double> {0.0}, vector<int> {songs.numChars});
-	b32.derivativeMemo.clear();
-	b32.derivativeMemo.resize(songs.numChars, 0.0);
-
-	Variable&& w42 = Variable(trunGaussianRandomNums(vector<int>{200, songs.numChars}, -0.1, 0.1));
-	Variable&& u42 = Variable(trunGaussianRandomNums(vector<int>{200, songs.numChars}, -0.1, 0.1));
-	Variable&& b42 = Variable(vector<double> {0.0}, vector<int> {songs.numChars});
-	b42.derivativeMemo.clear();
-	b42.derivativeMemo.resize(songs.numChars, 0.0);
-
-	Variable&& v = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, songs.numChars}, -0.1, 0.1));
-	Variable&& vb = Variable(vector<double> {0.0}, vector<int> {songs.numChars});
-	vb.derivativeMemo.clear();
-	vb.derivativeMemo.resize(songs.numChars, 0.0);
-
-
-	Node* f1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &w11, 1, 0), new MatMul(&h1, &u11, 1, 0)), &b11));
-	Node* i1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &w21, 1, 0), new MatMul(&h1, &u21, 1, 0)), &b21));
-	Node* o1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &w31, 1, 0), new MatMul(&h1, &u31, 1, 0)), &b31));
-	Node* tempC1 = new TanH(new Add(new Add(new MatMul(&xData, &w41, 1, 0), new MatMul(&h1, &u41, 1, 0)), &b41));
-
-	Node* newC1 = new Add(new Multiply(f1, &c1), new Multiply(i1, tempC1));
-	Node* newH1 = new Multiply(o1, new TanH(newC1));
-
-
-	Node* f2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &w12, 1, 0), new MatMul(&h2, &u12, 1, 0)), &b12));
-	Node* i2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &w22, 1, 0), new MatMul(&h2, &u22, 1, 0)), &b22));
-	Node* o2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &w32, 1, 0), new MatMul(&h2, &u32, 1, 0)), &b32));
-	Node* tempC2 = new TanH(new Add(new Add(new MatMul(newH1, &w42, 1, 0), new MatMul(&h2, &u42, 1, 0)), &b42));
-
-	Node* newC2 = new Add(new Multiply(f2, &c2), new Multiply(i2, tempC2));
-	Node* newH2 = new Multiply(o2, new TanH(newC2));
-
-	Node* outVal = new Add(new MatMul(newH2, &v, 1, 0), &vb);
-
-
-
-
-
-	Node* cost = new CrossEntropySoftmax(outVal, &yData);
-
-	initalize(cost);
-
-	GradientDescent trainer = GradientDescent(0.001);
-
-	vector<Variable*> variables = {&v, &vb};
-	vector<Variable*> noClear1 = {&u11, &u21, &u31, &u41, &w11, &b11, &w21, &b21, &w31, &b31, &w41, &b41};
-	vector<Variable*> noClear2 = {&u12, &u22, &u32, &u42, &w12, &b12, &w22, &b22, &w32, &b32, &w42, &b42};
-
-	for(int i = 0; i < 100; i++){
-		// batchSize = 1;
-
-		// xData.outDimentions = {batchSize, songs.numChars};
-		// xData.outRank = 2;
-		// xData.outSize = batchSize * songs.numChars;
-
-		// c.outDimentions = {batchSize, songs.numChars};
-		// c.outRank = 2;
-		// c.outSize = batchSize * songs.numChars;
-		// c.derivativeMemo.clear();
-		// c.derivativeMemo.resize(c.outSize, 0.0);
-
-		// songs.getRandomSet(batchSize);
-		// xData.derivativeMemo.clear();
-		// xData.derivativeMemo.resize(xData.outSize, 0.0);
-		// yData.derivativeMemo = songs.getNext();
-
-
-
-
-
-
-
-
-
-		c1.derivativeMemo.clear();
-		c1.derivativeMemo.resize(c1.outSize, 0.0);
-		h1.derivativeMemo.clear();
-		h1.derivativeMemo.resize(h1.outSize, 0.0);
-		c2.derivativeMemo.clear();
-		c2.derivativeMemo.resize(c2.outSize, 0.0);
-		h2.derivativeMemo.clear();
-		h2.derivativeMemo.resize(h2.outSize, 0.0);
-		xData.derivativeMemo.clear();
-		xData.derivativeMemo.resize(xData.outSize, 0.0);
-		yData.derivativeMemo.clear();
-		yData.derivativeMemo.resize(yData.outSize, 0.0);
-
-		vector<vector<double>> history1;
-		vector<vector<double>> history2;
-
-		for(int x = 0; x < noClear1.size(); x++){
-			noClear1[x]->derivative.clear();
-			noClear1[x]->derivative.resize(noClear1[x]->outSize, 0.0);
-
-			vector<double> temp1;
-			temp1.resize(noClear1[x]->outSize, 0.0);
-			history1.push_back(temp1);
-		}
-
-		for(int x = 0; x < noClear2.size(); x++){
-			noClear2[x]->derivative.clear();
-			noClear2[x]->derivative.resize(noClear2[x]->outSize, 0.0);
-
-			vector<double> temp2;
-			temp2.resize(noClear2[x]->outSize, 0.0);
-			history2.push_back(temp2);
-		}
-
-		for(int z = 1; z < newSong.size() / songs.numChars; z++){
-			vector<vector<double>> gradient;
-
-			for(int x = 0; x < songs.numChars; x++){
-				xData.derivativeMemo[x] = newSong[songs.numChars * (z - 1) + x];
-				yData.derivativeMemo[x] = newSong[songs.numChars * z + x];
-			}
-
-			// trainer.minimize(cost, variables, noClear);
-			cost->getValue();
-			
-
-
-
-			if(z % 50 == 0){
-				cout << getValue(cost).describe() << endl;
-			}
-
-			c1.derivativeMemo = newC1->derivativeMemo;
-			h1.derivativeMemo = newH1->derivativeMemo;
-			c2.derivativeMemo = newC2->derivativeMemo;
-			h2.derivativeMemo = newH2->derivativeMemo;
-		}
-
-		cout << "done" << endl;
-
-
-
-
-
-		vector<double> data;
-		string seed = "[Produced by Kanye West]\n\n[Intro]\nUhh.. uhh\nUhh.. uhh\nGood morning!\nGood morning!\nGood morning!\nGood morning!](4905654)\n\n[Verse 1]\nWake up Mr. West, Mr. West";
-		// batchSize = 1;
-
-		// xData.outDimentions = {batchSize, songs.numChars};
-		// xData.outRank = 2;
-		// xData.outSize = batchSize * songs.numChars;
-
-		// c.outDimentions = {batchSize, songs.numChars};
-		// c.outRank = 2;
-		// c.outSize = batchSize * songs.numChars;
-		// c.derivativeMemo.clear();
-		// c.derivativeMemo.resize(c.outSize, 0.0);
-
-
-		c1.derivativeMemo.clear();
-		c1.derivativeMemo.resize(c1.outSize, 0.0);
-		h1.derivativeMemo.clear();
-		h1.derivativeMemo.resize(h1.outSize, 0.0);
-		c2.derivativeMemo.clear();
-		c2.derivativeMemo.resize(c2.outSize, 0.0);
-		h2.derivativeMemo.clear();
-		h2.derivativeMemo.resize(h2.outSize, 0.0);
-		xData.derivativeMemo.clear();
-		xData.derivativeMemo.resize(xData.outSize, 0.0);
-		xData.derivativeMemo = songs.charToVector(seed[0]);
-		for(int x = 0; x < xData.outSize; x++){
-			data.push_back(xData.derivativeMemo[x]);
-		}
-
-		for(int i = 1; i < seed.size(); i++){
-			outVal->getValue();
-
-			xData.derivativeMemo = songs.charToVector(seed[i]);
-			c1.derivativeMemo = newC1->derivativeMemo;
-			h1.derivativeMemo = newH1->derivativeMemo;
-			c2.derivativeMemo = newC2->derivativeMemo;
-			h2.derivativeMemo = newH2->derivativeMemo;
-			for(int x = 0; x < xData.outSize; x++){
-				data.push_back(xData.derivativeMemo[x]);
-			}
-		}
-
-		int loopCount = 0;
-		vector<double> tempData;
-		tempData.clear();
-		tempData.resize(songs.numChars, 0.0);
-
-		while(tempData[songs.numChars - 1] != 1.0 && loopCount < 1000){
-			Constant results = getValue(outVal);
-
-			Max tempExpression = Max(&results, 1);
-			initalize(&tempExpression);
-			tempExpression.getValue();
-			for(int i = 0; i < songs.numChars; i++){
-				if(tempExpression.idx[0] == i){
-					tempData[i] = 1.0;
-				}
-				else{
-					tempData[i] = 0.0;
-				}
-			}
-
-			xData.derivativeMemo = tempData;
-			c1.derivativeMemo = newC1->derivativeMemo;
-			h1.derivativeMemo = newH1->derivativeMemo;
-			c2.derivativeMemo = newC2->derivativeMemo;
-			h2.derivativeMemo = newH2->derivativeMemo;
-			for(int x = 0; x < xData.outSize; x++){
-				data.push_back(xData.derivativeMemo[x]);
-			}
-
-			loopCount += 1;
-		}
-
-		songs.placeSong(data, "test" + to_string(i) + ".txt");
-	}
-}
-
-void autoEncoderMNISTNN(){
-	Constant&& xData = Constant(0.0, "x");
-
-	xData.outDimentions = {100, 784};
-	xData.outRank = 2;
-	xData.outSize = 78400;
-
-	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 100}, 0.0, 1.0 / sqrt(784.0)).derivativeMemo, vector<int> {784, 100}, "w1");
-	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{100, 784}, 0.0, 1.0 / sqrt(100.0)).derivativeMemo, vector<int> {100, 784}, "w2");
-	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{100}, 0.0, 1.0).derivativeMemo, vector<int> {100}, "bias1");
-	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{784}, 0.0, 1.0).derivativeMemo, vector<int> {784}, "bias2");
-
-	Node* layer1 = new Gate(new ReLU(new Add(new MatMul(&xData, &weights1, 1, 0), &bias1)));
-	Node* layer2 = new TanH(new Add(new MatMul(layer1, &weights2, 1, 0), &bias2));
-
-	Node* cost = new MeanSquared(layer2, &xData);
-
-	initalize(cost);
-
-	GradientDescent trainer = GradientDescent(0.001);
-
-	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2};
-	vector<Variable*> noClear;
-
-
-	cout << "pre-train begin." << endl;
-
-	for(int i = 0; i < 1001; i++){
-		vector<vector<double>> trainData = getTrain(100);
-		xData.derivativeMemo = trainData[0];
-
-		trainer.minimize(cost, variables, noClear);
-
-		if(i % 10 == 0){
-			cout << getValue(cost).describe() << endl;
-		}
-	}
-
-
-	cout << "pre-train done." << endl;
-
-	
-	Constant&& yData = Constant(0.0, "y");
-
-	yData.outDimentions = {100, 10};
-	yData.outRank = 2;
-	yData.outSize = 1000;
-
-	Variable&& weights3 = Variable(gaussianRandomNums(vector<int>{100, 10}, 0.0, 1.0 / sqrt(100.0)).derivativeMemo, vector<int> {100, 10}, "w3");
-	Variable&& bias3 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0).derivativeMemo, vector<int> {10}, "bias3");
-
-	dynamic_cast<Gate*>(layer1)->closed = true;
-
-	Node* layer3 = new Add(new MatMul(layer1, &weights3, 1, 0), &bias3);
-
-	Node* cost2 = new CrossEntropySoftmax(layer3, &yData);
-
-	initalize(cost2);
-
-	GradientDescent trainer2 = GradientDescent(0.05);
-
-	vector<Variable*> variables2 = {&weights1, &bias1, &weights3, &bias3};
-
-
-	for(int i = 0; i < 1001; i++){
-		vector<vector<double>> trainData = getTrain(100);
-		xData.derivativeMemo = trainData[0];
-		yData.derivativeMemo = trainData[1];
-
-		trainer2.minimize(cost2, variables2, noClear);
-
-		if(i % 10 == 0){
-			cout << getValue(cost2).describe() << endl;
-		}
-	}
-
-	vector<vector<double>> testData = getTest(1000);
-	xData.derivativeMemo = testData[0];
-	yData.derivativeMemo = testData[1];
-
-	xData.outDimentions = {1000, 784};
-	xData.outRank = 2;
-	xData.outSize = 784000;
-
-	yData.outDimentions = {1000, 10};
-	yData.outRank = 2;
-	yData.outSize = 10000;
-
-	initalize(layer3);
-
-	Constant prediction = getValue(layer3);
-
-	Max a = Max(&prediction, 1);
-	Max b = Max(&yData, 1);
-	initalize(&a);
-	initalize(&b);
-
-	a.getValue();
-	b.getValue();
-
-	Constant temp1 = Constant(vector<double> (a.idx.begin(), a.idx.end()), vector<int> {100});
-	Constant temp2 = Constant(vector<double> (b.idx.begin(), b.idx.end()), vector<int> {100});
-	Constant temp3 = equal(temp1, temp2);
-
-	Node* avg = new Mean(&temp3);
-	initalize(avg);
-	cout << getValue(avg).describe() << endl;
-
-
-}
-
-void MNISTFFNN(){
-	Constant&& xData = Constant(0.0, "x");
-	Constant&& yData = Constant(0.0, "y");
-
-	xData.outDimentions = {100, 784};
-	xData.outRank = 2;
-	xData.outSize = 78400;
-
-	yData.outDimentions = {100, 10};
-	yData.outRank = 2;
-	yData.outSize = 1000;
-
-	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 40}, 0.0, 1.0 / sqrt(784.0)).derivativeMemo, vector<int> {784, 40}, "w1");
-	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)).derivativeMemo, vector<int> {40, 10}, "w2");
-	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{40}, 0.0, 1.0).derivativeMemo, vector<int> {40}, "bias1");
-	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0).derivativeMemo, vector<int> {10}, "bias2");
-
-	Node* layer1 = new ReLU(new Add(new MatMul(&xData, &weights1, 1, 0), &bias1));
-	Node* layer2 = new Add(new MatMul(layer1, &weights2, 1, 0), &bias2);
-
-	Node* cost = new CrossEntropySoftmax(layer2, &yData);
-
-	initalize(cost);
-
-	GradientDescent trainer = GradientDescent(0.1);
-
-	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2};
-
-	vector<Variable*> noClear;
-
-	for(int i = 0; i < 201; i++){
-		vector<vector<double>> trainData = getTrain(100);
-		xData.derivativeMemo = trainData[0];
-		yData.derivativeMemo = trainData[1];
-
-		trainer.minimize(cost, variables, noClear);
-
-		if(i % 10 == 0){
-			cout << getValue(cost).describe() << endl;
-		}
-	}
-
-	vector<vector<double>> testData = getTest(1000);
-	xData.derivativeMemo = testData[0];
-	yData.derivativeMemo = testData[1];
-
-	xData.outDimentions = {1000, 784};
-	xData.outRank = 2;
-	xData.outSize = 784000;
-
-	yData.outDimentions = {1000, 10};
-	yData.outRank = 2;
-	yData.outSize = 10000;
-
-	initalize(layer2);
-
-	Constant prediction = getValue(layer2);
-
-	Max a = Max(&prediction, 1);
-	Max b = Max(&yData, 1);
-	initalize(&a);
-	initalize(&b);
-
-	a.getValue();
-	b.getValue();
-
-	Constant temp1 = Constant(vector<double> (a.idx.begin(), a.idx.end()), vector<int> {100});
-	Constant temp2 = Constant(vector<double> (b.idx.begin(), b.idx.end()), vector<int> {100});
-	Constant temp3 = equal(temp1, temp2);
-
-	Node* avg = new Mean(&temp3);
-	initalize(avg);
-	cout << getValue(avg).describe() << endl;
-}
-
-vector<vector<double>> getTrain(int n){
-	vector<vector<double>> temp = randomTrainSet(n);
-
-	for(int i = 0; i < n * 28 * 28; i++){
-		temp[0][i] = (temp[0][i] - 128.0) / 256.0;
-	}
-
-	vector<double> yFinal = oneHot(Constant(temp[1], vector<int> {n}), 0, 9).derivativeMemo;
-
-	vector<vector<double>> ans = {temp[0], yFinal};
-
-	return ans;
-}
-
-vector<vector<double>> getTest(int n){
-	vector<vector<double>> temp = randomTestSet(n);
-	
-	for(int i = 0; i < n * 28 * 28; i++){
-		temp[0][i] = (temp[0][i] - 128.0) / 256.0;
-	}
-
-	vector<double> yFinal = oneHot(Constant(temp[1], vector<int> {n}), 0, 9).derivativeMemo;
-
-	vector<vector<double>> ans = {temp[0], yFinal};
-
-	return ans;
-}
-
 void linearReg(){
-	Constant&& xData = uniformRandomNums(vector<int>{100, 101}, -100.0, 100.0);
-	for(int i = 0; i < xData.outDimentions[0]; i++){
-		xData.derivativeMemo[i * xData.outDimentions[0] + 100] = 1.0;
+	Constant&& xData = Constant(gaussianRandomNums(vector<int>{10000, 1001}, -10.0, 10.0));
+	for(int i = 0; i < xData.value.dimentions[0]; i++){
+		xData.value.values[i * xData.value.dimentions[1] + 100] = 1.0;
 	}
 
-	Node* temp = new Sum(new Multiply(&xData, new Constant(0.5)), 1);
-	initalize(temp);
-	Constant&& yData = getValue(temp);
+	Node* yValExpression = new Add(new Sum(new Multiply(&xData, new Constant(NumObject(0.5))), 1), new Constant(NumObject(0.5)));
+	initalize(yValExpression);
+	Constant&& yData = Constant(getValue(yValExpression));
+	clearHistory(&xData);
 
-	Variable&& weights = Variable(uniformRandomNums(vector<int>{101}, -0.5, 0.5));
+	Variable&& weights = Variable(gaussianRandomNums(vector<int>{101}, -0.5, 0.5));
 
-	Node* hypothesis = new MatMul(&xData, &weights, 1, 0);
-	Node* cost = new MeanSquared(hypothesis, &yData);
+	Node* hypothesis = new MatMul(&xData, &weights);
+	Node* cost = new Mean(new Pow(new Subtract(hypothesis, &yData), new Constant(NumObject(2.0))));
 
-	GradientDescent trainer = GradientDescent(0.00001);
+	initalize(cost);
 
 	vector<Variable*> variables = {&weights};
-	vector<Variable*> noClear;
-
-	initalize(cost);
 
 	int start = clock();
-	for(int i = 0; i < 10000; i++){
-		trainer.minimize(cost, variables, noClear);
+	for(int i = 0; i < 40000; i++){
+		derive(cost);
+		gradientDescent(variables, 0.00003);
 
 		// if(i % 10 == 0){
-		// 	cout << getValue(cost).describe() << endl;
+		// 	cout << showValue(cost).describe() << endl;
 		// }
 	}
-	int stop = clock();
-	cout << (stop - start) / double(CLOCKS_PER_SEC) << endl;
-
+	int end = clock();
+	cout << (end - start) / double(CLOCKS_PER_SEC) << endl;
+	// weights.updateHostVals();
 	// cout << weights.describe() << endl;
 }
+
+// void rubixNet(){
+// 	Constant&& xData = Constant(NumObject(), "x");
+// 	Constant&& yData = Constant(NumObject(), "y");
+
+// 	Variable&& h1 = Variable(NumObject(), "h1");
+// 	Variable&& c1 = Variable(NumObject(), "c1");
+
+// 	Variable&& h2 = Variable(NumObject(), "h2");
+// 	Variable&& c2 = Variable(NumObject(), "c2");
+	
+// 	Variable&& wf1 = Variable(trunGaussianRandomNums(vector<int>{147, 64}, -0.1, 0.1), "wf1");
+// 	Variable&& uf1 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "uf1");
+// 	Variable&& bf1 = Variable(gaussianRandomNums(vector<int>{64}, 0.0, 1.0), "bf1");
+
+// 	Variable&& wi1 = Variable(trunGaussianRandomNums(vector<int>{147, 64}, -0.1, 0.1), "wi1");
+// 	Variable&& ui1 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "ui1");
+// 	Variable&& bi1 = Variable(gaussianRandomNums(vector<int>{64}, 0.0, 1.0), "bi1");
+
+// 	Variable&& wo1 = Variable(trunGaussianRandomNums(vector<int>{147, 64}, -0.1, 0.1), "wo1");
+// 	Variable&& uo1 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "uo1");
+// 	Variable&& bo1 = Variable(gaussianRandomNums(vector<int>{64}, 0.0, 1.0), "bo1");
+
+// 	Variable&& wc1 = Variable(trunGaussianRandomNums(vector<int>{147, 64}, -0.1, 0.1), "wc1");
+// 	Variable&& uc1 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "uc1");
+// 	Variable&& bc1 = Variable(gaussianRandomNums(vector<int>{64}, 0.0, 1.0), "bc1");
+
+// 	Variable&& wf2 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "wf2");
+// 	Variable&& uf2 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "uf2");
+// 	Variable&& bf2 = Variable(NumObject(vector<int>{64}, 0.0), "bf2");
+
+// 	Variable&& wi2 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "wi2");
+// 	Variable&& ui2 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "ui2");
+// 	Variable&& bi2 = Variable(NumObject(vector<int>{64}, 0.0), "bi2");
+
+// 	Variable&& wo2 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "wo2");
+// 	Variable&& uo2 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "uo2");
+// 	Variable&& bo2 = Variable(NumObject(vector<int>{64}, 0.0), "bo2");
+
+// 	Variable&& wc2 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "wc2");
+// 	Variable&& uc2 = Variable(trunGaussianRandomNums(vector<int>{64, 64}, -0.1, 0.1), "uc2");
+// 	Variable&& bc2 = Variable(NumObject(vector<int>{64}, 0.0), "bc2");
+
+// 	Variable&& ow1 = Variable(trunGaussianRandomNums(vector<int>{64, 7}, -0.1, 0.1), "ow1");
+// 	Variable&& ob1 = Variable(NumObject(vector<int>{7}, 0.0), "ob1");
+
+
+// 	Node* f1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &wf1), new MatMul(&h1, &uf1)), &bf1));
+// 	Node* i1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &wi1), new MatMul(&h1, &ui1)), &bi1));
+// 	Node* o1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &wo1), new MatMul(&h1, &uo1)), &bo1));
+// 	Node* tempC1 = new Softsign(new Add(new Add(new MatMul(&xData, &wc1), new MatMul(&h1, &uc1)), &bc1));
+// 	Node* newC1 = new Set(new Add(new Multiply(f1, &c1), new Multiply(i1, tempC1)), &c1);
+// 	Node* newH1 = new Set(new Multiply(o1, new Softsign(newC1)), &h1);
+
+// 	Node* f2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &wf2), new MatMul(&h2, &uf2)), &bf2));
+// 	Node* i2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &wi2), new MatMul(&h2, &ui2)), &bi2));
+// 	Node* o2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &wo2), new MatMul(&h2, &uo2)), &bo2));
+// 	Node* tempC2 = new Softsign(new Add(new Add(new MatMul(newH1, &wc2), new MatMul(&h2, &uc2)), &bc2));
+// 	Node* newC2 = new Set(new Add(new Multiply(f2, &c2), new Multiply(i2, tempC2)), &c2);
+// 	Node* newH2 = new Set(new Multiply(o2, new Softsign(newC2)), &h2);
+
+// 	Node* o = new Add(new MatMul(newH2, &ow1), &ob1);
+
+// 	Node* cost = new CrossEntropySoftmax(o, &yData);
+
+// 	GradientDescent trainer = GradientDescent(0.1);
+
+// 	vector<Variable*> variables = {&wf1, &uf1, &bf1, &wi1, &ui1, &bi1, &wo1, &uo1, &bo1, &wc1, &uc1, &bc1, &wf2, &uf2, &bf2, &wi2, &ui2, &bi2, &wo2, &uo2, &bo2, &wc2, &uc2, &bc2, &ow1, &ob1};
+// 	vector<Constant*> constants = {&xData, &yData};
+
+// 	for(int i = 0; i < 1001; i++){
+// 		h1.value = NumObject(vector<int> {100, 64}, 0.0);
+// 		c1.value = NumObject(vector<int> {100, 64}, 0.0);
+// 		h2.value = NumObject(vector<int> {100, 64}, 0.0);
+// 		c2.value = NumObject(vector<int> {100, 64}, 0.0);
+
+// 		vector<vector<NumObject>> finalData = generateData(100);
+
+// 		NumObject costVal = deriveTime(cost, finalData, constants);
+// 		trainer.minimize(variables);
+
+// 		cout << i << ", " << costVal.describe() << endl;
+// 	}
+
+// 	cout << "testing..." << endl;
+
+// 	h1.value = NumObject(vector<int> {10000, 64}, 0.0);
+// 	c1.value = NumObject(vector<int> {10000, 64}, 0.0);
+// 	h2.value = NumObject(vector<int> {10000, 64}, 0.0);
+// 	c2.value = NumObject(vector<int> {10000, 64}, 0.0);
+
+// 	vector<vector<NumObject>> testData = generateData(10000);
+// 	getValueTime(cost, testData, constants);
+
+// 	double ans = 0.0;
+// 	for(int i = 0; i < o->derivativeMemo.size(); i++){
+// 		Max a = Max(new Constant(o->derivativeMemo[i]), 1);
+// 		Max b = Max(new Constant(yData.derivativeMemo[i]), 1);
+// 		a.getValue();
+// 		b.getValue();
+// 		ans += Mean(new Constant(equal(a.idx[0], b.idx[0]))).getValue().values[0];
+// 	}
+
+// 	cout << ans / o->derivativeMemo.size() << endl;
+// 	cout << "done testing" << endl;
+
+// 	// NumObject data = NumObject(vector<int>{1, 147});
+// 	// data.values = convertToData("ggggyyyybbbbwwwwoooorrrr").values;
+
+// 	// h1.value = NumObject(vector<int> {10000, 2}, 0.0);
+// 	// c1.value = NumObject(vector<int> {10000, 2}, 0.0);
+// 	// h2.value = NumObject(vector<int> {10000, 2}, 0.0);
+// 	// c2.value = NumObject(vector<int> {10000, 2}, 0.0);
+
+// 	// for(int i = 0; i <= 40; i++){
+// 	// 	xData.value = data;
+
+// 	// 	NumObject ans = o->getValue(0, 40);
+
+// 	// 	Max tempExpression = Max(new Constant(ans), 1);
+// 	// 	tempExpression.getValue();
+
+// 	// 	if(tempExpression.idx[0].values[0] == 0){
+// 	// 		data.values = convertToData(left(convertToString(data))).values;
+// 	// 		cout << "left" << endl;
+// 	// 	}
+// 	// 	if(tempExpression.idx[0].values[0] == 1){
+// 	// 		data.values = convertToData(right(convertToString(data))).values;
+// 	// 		cout << "right" << endl;
+// 	// 	}
+// 	// 	if(tempExpression.idx[0].values[0] == 2){
+// 	// 		data.values = convertToData(up(convertToString(data))).values;
+// 	// 		cout << "up" << endl;
+// 	// 	}
+// 	// 	if(tempExpression.idx[0].values[0] == 3){
+// 	// 		data.values = convertToData(down(convertToString(data))).values;
+// 	// 		cout << "down" << endl;
+// 	// 	}
+// 	// 	if(tempExpression.idx[0].values[0] == 4){
+// 	// 		data.values = convertToData(rotateLeft(convertToString(data))).values;
+// 	// 		cout << "rotate left" << endl;
+// 	// 	}
+// 	// 	if(tempExpression.idx[0].values[0] == 5){
+// 	// 		data.values = convertToData(rotateRight(convertToString(data))).values;
+// 	// 		cout << "rotate right" << endl;
+// 	// 	}
+// 	// 	if(tempExpression.idx[0].values[0] == 6){
+// 	// 		cout << "done" << endl;
+// 	// 		break;
+// 	// 	}
+// 	// }
+// }
+
+// void WordRNN(bool randomize){
+// 	StepSongs songs = StepSongs();
+
+// 	Constant&& xData = Constant(NumObject(), "x");
+// 	Constant&& yData = Constant(NumObject(), "y");
+
+// 	Variable&& h1 = Variable(NumObject(), "h1");
+// 	Variable&& c1 = Variable(NumObject(), "c1");
+
+// 	Variable&& h2 = Variable(NumObject(), "h2");
+// 	Variable&& c2 = Variable(NumObject(), "c2");
+
+
+// 	Variable&& wf1 = Variable(NumObject());
+// 	Variable&& uf1 = Variable(NumObject());
+// 	Variable&& bf1 = Variable(NumObject());
+
+// 	Variable&& wi1 = Variable(NumObject());
+// 	Variable&& ui1 = Variable(NumObject());
+// 	Variable&& bi1 = Variable(NumObject());
+
+// 	Variable&& wo1 = Variable(NumObject());
+// 	Variable&& uo1 = Variable(NumObject());
+// 	Variable&& bo1 = Variable(NumObject());
+
+// 	Variable&& wc1 = Variable(NumObject());
+// 	Variable&& uc1 = Variable(NumObject());
+// 	Variable&& bc1 = Variable(NumObject());
+
+
+// 	Variable&& wf2 = Variable(NumObject());
+// 	Variable&& uf2 = Variable(NumObject());
+// 	Variable&& bf2 = Variable(NumObject());
+
+// 	Variable&& wi2 = Variable(NumObject());
+// 	Variable&& ui2 = Variable(NumObject());
+// 	Variable&& bi2 = Variable(NumObject());
+
+// 	Variable&& wo2 = Variable(NumObject());
+// 	Variable&& uo2 = Variable(NumObject());
+// 	Variable&& bo2 = Variable(NumObject());
+
+// 	Variable&& wc2 = Variable(NumObject());
+// 	Variable&& uc2 = Variable(NumObject());
+// 	Variable&& bc2 = Variable(NumObject());
+
+
+// 	Variable&& ow1 = Variable(NumObject());
+// 	Variable&& ob1 = Variable(NumObject());
+
+
+// 	if(randomize == true){
+// 		wf1 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 512}, -0.1, 0.1), "wf1");
+// 		uf1 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "uf1");
+// 		bf1 = Variable(gaussianRandomNums(vector<int>{512}, 0.0, 1.0), "bf1");
+
+// 		wi1 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 512}, -0.1, 0.1), "wi1");
+// 		ui1 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "ui1");
+// 		bi1 = Variable(gaussianRandomNums(vector<int>{512}, 0.0, 1.0), "bi1");
+
+// 		wo1 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 512}, -0.1, 0.1), "wo1");
+// 		uo1 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "uo1");
+// 		bo1 = Variable(gaussianRandomNums(vector<int>{512}, 0.0, 1.0), "bo1");
+
+// 		wc1 = Variable(trunGaussianRandomNums(vector<int>{songs.numChars, 512}, -0.1, 0.1), "wc1");
+// 		uc1 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "uc1");
+// 		bc1 = Variable(gaussianRandomNums(vector<int>{512}, 0.0, 1.0), "bc1");
+
+// 		wf2 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "wf2");
+// 		uf2 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "uf2");
+// 		bf2 = Variable(NumObject(vector<int>{512}, 0.0), "bf2");
+
+// 		wi2 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "wi2");
+// 		ui2 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "ui2");
+// 		bi2 = Variable(NumObject(vector<int>{512}, 0.0), "bi2");
+
+// 		wo2 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "wo2");
+// 		uo2 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "uo2");
+// 		bo2 = Variable(NumObject(vector<int>{512}, 0.0), "bo2");
+
+// 		wc2 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "wc2");
+// 		uc2 = Variable(trunGaussianRandomNums(vector<int>{512, 512}, -0.1, 0.1), "uc2");
+// 		bc2 = Variable(NumObject(vector<int>{512}, 0.0), "bc2");
+
+// 		ow1 = Variable(trunGaussianRandomNums(vector<int>{512, songs.numChars}, -0.1, 0.1), "ow1");
+// 		ob1 = Variable(NumObject(vector<int>{songs.numChars}, 0.0), "ob1");
+// 	}
+// 	else{
+// 		wf1 = Variable(loadData("../Weights/wf1.txt"), "wf1");
+// 		uf1 = Variable(loadData("../Weights/uf1.txt"), "uf1");
+// 		bf1 = Variable(loadData("../Weights/bf1.txt"), "bf1");
+
+// 		wi1 = Variable(loadData("../Weights/wi1.txt"), "wi1");
+// 		ui1 = Variable(loadData("../Weights/ui1.txt"), "ui1");
+// 		bi1 = Variable(loadData("../Weights/bi1.txt"), "bi1");
+
+// 		wo1 = Variable(loadData("../Weights/wo1.txt"), "wo1");
+// 		uo1 = Variable(loadData("../Weights/uo1.txt"), "uo1");
+// 		bo1 = Variable(loadData("../Weights/bo1.txt"), "bo1");
+
+// 		wc1 = Variable(loadData("../Weights/wc1.txt"), "wc1");
+// 		uc1 = Variable(loadData("../Weights/uc1.txt"), "uc1");
+// 		bc1 = Variable(loadData("../Weights/bc1.txt"), "bc1");
+
+// 		wf2 = Variable(loadData("../Weights/wf2.txt"), "wf2");
+// 		uf2 = Variable(loadData("../Weights/uf2.txt"), "uf2");
+// 		bf2 = Variable(loadData("../Weights/bf2.txt"), "bf2");
+
+// 		wi2 = Variable(loadData("../Weights/wi2.txt"), "wi2");
+// 		ui2 = Variable(loadData("../Weights/ui2.txt"), "ui2");
+// 		bi2 = Variable(loadData("../Weights/bi2.txt"), "bi2");
+
+// 		wo2 = Variable(loadData("../Weights/wo2.txt"), "wo2");
+// 		uo2 = Variable(loadData("../Weights/uo2.txt"), "uo2");
+// 		bo2 = Variable(loadData("../Weights/bo2.txt"), "bo2");
+
+// 		wc2 = Variable(loadData("../Weights/wc2.txt"), "wc2");
+// 		uc2 = Variable(loadData("../Weights/uc2.txt"), "uc2");
+// 		bc2 = Variable(loadData("../Weights/bc2.txt"), "bc2");
+
+// 		ow1 = Variable(loadData("../Weights/ow1.txt"), "ow1");
+// 		ob1 = Variable(loadData("../Weights/ob1.txt"), "ob1");
+// 	}
+
+// 	Node* f1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &wf1), new MatMul(&h1, &uf1)), &bf1));
+// 	Node* i1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &wi1), new MatMul(&h1, &ui1)), &bi1));
+// 	Node* o1 = new Sigmoid(new Add(new Add(new MatMul(&xData, &wo1), new MatMul(&h1, &uo1)), &bo1));
+// 	Node* tempC1 = new Softsign(new Add(new Add(new MatMul(&xData, &wc1), new MatMul(&h1, &uc1)), &bc1));
+// 	Node* newC1 = new Set(new Add(new Multiply(f1, &c1), new Multiply(i1, tempC1)), &c1);
+// 	Node* newH1 = new Dropout(new Set(new Multiply(o1, new Softsign(newC1)), &h1), 1, 0.5);
+
+// 	Node* f2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &wf2), new MatMul(&h2, &uf2)), &bf2));
+// 	Node* i2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &wi2), new MatMul(&h2, &ui2)), &bi2));
+// 	Node* o2 = new Sigmoid(new Add(new Add(new MatMul(newH1, &wo2), new MatMul(&h2, &uo2)), &bo2));
+// 	Node* tempC2 = new Softsign(new Add(new Add(new MatMul(newH1, &wc2), new MatMul(&h2, &uc2)), &bc2));
+// 	Node* newC2 = new Set(new Add(new Multiply(f2, &c2), new Multiply(i2, tempC2)), &c2);
+// 	Node* newH2 = new Dropout(new Set(new Multiply(o2, new Softsign(newC2)), &h2), 1, 0.5);
+
+
+// 	Node* o = new Add(new MatMul(newH2, &ow1), &ob1);
+
+// 	Node* cost = new CrossEntropySoftmax(o, &yData);
+
+// 	GradientDescent trainer = GradientDescent(0.2);
+
+// 	vector<Variable*> variables = {&wf1, &uf1, &bf1, &wi1, &ui1, &bi1, &wo1, &uo1, &bo1, &wc1, &uc1, &bc1, &wf2, &uf2, &bf2, &wi2, &ui2, &bi2, &wo2, &uo2, &bo2, &wc2, &uc2, &bc2, &ow1, &ob1};
+// 	vector<Constant*> constants = {&xData, &yData};
+
+// 	int i = 0;
+
+// 	cout << "running loop." << endl;
+
+// 	while(true){
+
+// 		h1.value = NumObject(vector<int> {10, 512}, 0.0);
+// 		c1.value = NumObject(vector<int> {10, 512}, 0.0);
+// 		h2.value = NumObject(vector<int> {10, 512}, 0.0);
+// 		c2.value = NumObject(vector<int> {10, 512}, 0.0);
+
+// 		dynamic_cast<Dropout*>(newH1)->training = true;
+// 		dynamic_cast<Dropout*>(newH2)->training = true;
+
+// 		songs.randomize(10);
+
+// 		while(songs.finished == false){
+// 			vector<NumObject> tempSong = songs.getRandomSet(50);
+// 			vector<NumObject> xVals;
+// 			vector<NumObject> yVals;
+// 			xVals.push_back(NumObject(vector<int>{10, songs.numChars}, 0.0));
+// 			for(int i = 0; i < tempSong.size() - 1; i++){
+// 				xVals.push_back(tempSong[i]);
+// 				yVals.push_back(tempSong[i]);
+// 			}
+// 			yVals.push_back(tempSong[tempSong.size() - 1]);
+
+// 			vector<vector<NumObject>> finalData = {xVals, yVals};
+
+
+// 			NumObject costVal = deriveTime(cost, finalData, constants);
+// 			trainer.minimize(variables);
+
+// 			cout << i << ", " << costVal.describe() << endl;
+			
+// 			if(i % 10 == 0){
+// 				cout << "start save" << endl;
+// 				saveData(wf1.value, "../Weights/wf1.txt");
+// 				saveData(uf1.value, "../Weights/uf1.txt");
+// 				saveData(bf1.value, "../Weights/bf1.txt");
+
+// 				saveData(wi1.value, "../Weights/wi1.txt");
+// 				saveData(ui1.value, "../Weights/ui1.txt");
+// 				saveData(bi1.value, "../Weights/bi1.txt");
+
+// 				saveData(wo1.value, "../Weights/wo1.txt");
+// 				saveData(uo1.value, "../Weights/uo1.txt");
+// 				saveData(bo1.value, "../Weights/bo1.txt");
+
+// 				saveData(wc1.value, "../Weights/wc1.txt");
+// 				saveData(uc1.value, "../Weights/uc1.txt");
+// 				saveData(bc1.value, "../Weights/bc1.txt");
+
+// 				saveData(wf2.value, "../Weights/wf2.txt");
+// 				saveData(uf2.value, "../Weights/uf2.txt");
+// 				saveData(bf2.value, "../Weights/bf2.txt");
+
+// 				saveData(wi2.value, "../Weights/wi2.txt");
+// 				saveData(ui2.value, "../Weights/ui2.txt");
+// 				saveData(bi2.value, "../Weights/bi2.txt");
+
+// 				saveData(wo2.value, "../Weights/wo2.txt");
+// 				saveData(uo2.value, "../Weights/uo2.txt");
+// 				saveData(bo2.value, "../Weights/bo2.txt");
+
+// 				saveData(wc2.value, "../Weights/wc2.txt");
+// 				saveData(uc2.value, "../Weights/uc2.txt");
+// 				saveData(bc2.value, "../Weights/bc2.txt");
+
+// 				saveData(ow1.value, "../Weights/ow1.txt");
+// 				saveData(ob1.value, "../Weights/ob1.txt");
+// 				cout << "end save" << endl;
+// 			}
+// 			i += 1;
+// 		}
+
+// 		cout << "start writing." << endl;
+
+// 		vector<NumObject> data;
+// 		int loopCount = 0;
+
+// 		dynamic_cast<Dropout*>(newH1)->training = false;
+// 		dynamic_cast<Dropout*>(newH2)->training = false;
+
+// 		xData.value = NumObject(vector<int>{1, songs.numChars}, 0.0);
+// 		h1.value = NumObject(vector<int> {1, 512}, 0.0);
+// 		c1.value = NumObject(vector<int> {1, 512}, 0.0);
+// 		h2.value = NumObject(vector<int> {1, 512}, 0.0);
+// 		c2.value = NumObject(vector<int> {1, 512}, 0.0);
+
+// 		while(loopCount < 1000){
+// 			NumObject tempData = NumObject(vector<int> {songs.numChars}, 0.0);
+// 			NumObject results = o->getValue(loopCount, 999);
+
+// 			Max tempExpression = Max(new Constant(results), 1);
+// 			tempExpression.getValue();
+// 			for(int i = 0; i < songs.numChars; i++){
+// 				if(tempExpression.idx[0].values[0] == i){
+// 					tempData.values[i] = 1.0;
+// 				}
+// 				else{
+// 					tempData.values[i] = 0.0;
+// 				}
+// 			}
+
+// 			xData.value = tempData;
+// 			data.push_back(tempData);
+
+// 			loopCount += 1;
+
+// 			if(tempData.values[songs.numChars - 1] == 1.0){
+// 				break;
+// 			}
+// 		}
+
+// 		songs.placeSong(data, "../Tests/test" + to_string(i) + ".txt");
+
+// 		cout << "end writing." << endl;
+// 	}
+// }
+
+// void MNISTFFNN(){
+// 	Constant&& xData = Constant(NumObject(), "x");
+// 	Constant&& yData = Constant(NumObject(), "y");
+// 	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 40}, 0.0, 1.0 / sqrt(784.0)), "w1");
+// 	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
+// 	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{40}, 0.0, 1.0), "bias1");
+// 	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
+
+// 	Node* layer1 = new ReLU(new Add(new MatMul(&xData, &weights1), &bias1));
+// 	Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
+
+// 	Node* cost = new CrossEntropySoftmax(layer2, &yData);
+
+// 	GradientDescent trainer = GradientDescent(0.1);
+
+// 	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2};
+
+// 	for(int i = 0; i < 201; i++){
+
+// 		vector<NumObject> trainData = getTrain(100);
+// 		xData.value = trainData[0];
+// 		yData.value = trainData[1];
+
+// 		NumObject costVal = derive(cost);
+// 		trainer.minimize(variables);
+
+// 		if(i % 10 == 0){
+// 			cout << costVal.describe() << endl;
+// 		}
+// 	}
+
+// 	vector<NumObject> testData = getTest(1000);
+// 	xData.value = testData[0];
+// 	yData.value = testData[1];
+
+// 	NumObject prediction = layer2->getValue();
+
+// 	Max a = Max(new Constant(prediction), 1);
+// 	Max b = Max(&yData, 1);
+// 	a.getValue();
+// 	b.getValue();
+
+// 	cout << Mean(new Constant(equal(a.idx[0], b.idx[0]))).getValue().describe() << endl;
+// }
+
+// vector<NumObject> getTrain(int n){
+// 	vector<NumObject> temp = randomTrainSet(n);
+
+// 	for(int i = 0; i < temp[0].values.size(); i++){
+// 		temp[0].values[i] = (temp[0].values[i] - 128.0) / 256.0;
+// 	}
+
+// 	NumObject yFinal = oneHot(temp[1], 0, 9);
+
+// 	vector<NumObject> ans = {temp[0], yFinal};
+
+// 	return ans;
+// }
+
+// vector<NumObject> getTest(int n){
+// 	vector<NumObject> temp = randomTestSet(n);
+	
+// 	for(int i = 0; i < temp[0].values.size(); i++){
+// 		temp[0].values[i] = (temp[0].values[i] - 128.0) / 256.0;
+// 	}
+
+// 	NumObject yFinal = oneHot(temp[1], 0, 9);
+
+// 	vector<NumObject> ans = {temp[0], yFinal};
+
+// 	return ans;
+// }
+
+
