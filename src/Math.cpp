@@ -325,12 +325,7 @@ void Ln::derive(){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
 			divideDerivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
-			if (outDims[0].rank > inputs[0]->seedDims.rank){
-				reduceSum(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
-			else{
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
 	}
@@ -367,12 +362,7 @@ void Exp::derive(){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
 			multiplyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), resultDims.dimBuf, result, seedDims.dimBuf, seed, out[0]);
-			if (outDims[0].rank > inputs[0]->seedDims.rank){
-				reduceSum(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
-			else{
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
 	}
@@ -380,144 +370,277 @@ void Exp::derive(){
 
 
 
-// Log::Log(Node* a, float baseVal): BasicFunction(a){
-// 	name = "Log";
-// 	base = baseVal;
-// }
+Log::Log(Node* a, float baseVal): BasicFunction(a){
+	name = "Log";
+	base = baseVal;
+}
 
-// void Log::getValue(){
-// 	if(getCount != 0){
-// 		getCount = (getCount + 1) % outCount;
-// 		return;
-// 	}
-// 	inputs[0]->getValue();
-// 	exp_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
-// 	getCount = (getCount + 1) % outCount;
-// }
+void Log::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	log_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result, (float)log(base));
+	getCount = (getCount + 1) % outCount;
+}
 
-// // void Log::derive(NumObject& seed, int t, int tf){
-// // 	if(sumSeed(seed)){
-// // 		if (typeid(*inputs[0]) != typeid(Constant)){
-// // 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// // 			NumObject eval1 = mapVals(this, &Log::deriveOperation1, items1);
-// // 			inputs[0]->derive(eval1, t, tf);
-// // 		}
-// // 	}
-// // }
+void Log::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
 
-// // double Log::deriveOperation1(vector<double>& a){
-// // 	return a[0] / (a[1] * log(base));
-// // }
+	if (getCount == 0){
+		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &inputs[0]->resultDims}));
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
 
-// string Log::describe(){
-// 	return name + "(" + inputs[0]->describe() + ", " + to_string(base) + ")";
-// }
+void Log::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			logDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, (float)log(base), seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
-// double Sin::operation(vector<double>& a){
-// 	return sin(a[0]);
-// }
+string Log::describe(){
+	return name + "(" + inputs[0]->describe() + ", " + to_string(base) + ")";
+}
 
-// void Sin::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &Sin::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
 
-// double Sin::deriveOperation1(vector<double>& a){
-// 	return a[0] * cos(a[1]);
-// }
 
-// double Cos::operation(vector<double>& a){
-// 	return cos(a[0]);
-// }
+void Sin::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	sin_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
 
-// void Cos::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &Cos::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
+void Sin::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
 
-// double Cos::deriveOperation1(vector<double>& a){
-// 	return -a[0] * sin(a[1]);
-// }
+	if (getCount == 0){
+		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &inputs[0]->resultDims}));
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
 
-// double Tan::operation(vector<double>& a){
-// 	return tan(a[0]);
-// }
+void Sin::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			sinDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
-// void Tan::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &Tan::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
 
-// double Tan::deriveOperation1(vector<double>& a){
-// 	return a[0] * (1.0 / cos(a[1])) * (1.0 / cos(a[1]));
-// }
 
-// double ArcSin::operation(vector<double>& a){
-// 	return asin(a[0]);
-// }
+void Cos::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	cos_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
 
-// void ArcSin::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &ArcSin::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
+void Cos::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
 
-// double ArcSin::deriveOperation1(vector<double>& a){
-// 	return a[0] / pow(1.0 - a[1] * a[1], 0.5);
-// }
+	if (getCount == 0){
+		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &inputs[0]->resultDims}));
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
 
-// double ArcCos::operation(vector<double>& a){
-// 	return acos(a[0]);
-// }
+void Cos::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			cosDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
-// void ArcCos::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &ArcCos::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
 
-// double ArcCos::deriveOperation1(vector<double>& a){
-// 	return -a[0] / pow(1.0 - a[1] * a[1], 0.5);
-// }
 
-// double ArcTan::operation(vector<double>& a){
-// 	return atan(a[0]);
-// }
 
-// void ArcTan::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &ArcTan::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
+void Tan::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	tan_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
 
-// double ArcTan::deriveOperation1(vector<double>& a){
-// 	return a[0] / (1.0 + a[1] * a[1]);
-// }
+void Tan::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &inputs[0]->resultDims}));
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
+
+void Tan::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			tanDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
+
+
+
+
+void ArcSin::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	asin_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
+
+void ArcSin::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &inputs[0]->resultDims}));
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
+
+void ArcSin::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			asinDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
+
+
+
+
+
+void ArcCos::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	acos_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
+
+void ArcCos::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &inputs[0]->resultDims}));
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
+
+void ArcCos::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			acosDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
+
+
+
+
+void ArcTan::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	atan_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
+
+void ArcTan::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &inputs[0]->resultDims}));
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
+
+void ArcTan::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			atanDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
+
+
+
 

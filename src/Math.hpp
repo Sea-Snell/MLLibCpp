@@ -70,68 +70,69 @@ public:
 	void derive();
 };
 
-// class Log: public BasicFunction{
-// public:
-// 	float base;
-// 	Log(Node* a, float baseVal = 10.0);
-// 	void getValue();
-// 	void deriveDimentions(GPUDimentions* tempSeed);
-// 	void derive();
-// 	string describe();
-// };
+class Log: public BasicFunction{
+public:
+	float base;
+	Log(Node* a, float baseVal = 10.0);
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+	string describe();
+};
 
-// class Sin: public BasicFunction{
-// public:
-// 	Sin(Node* a): BasicFunction(a){name = "Sin";}
-// 	void getValue();
-// 	// void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	// double deriveOperation1(vector<double>& a);
-// };
+class Sin: public BasicFunction{
+public:
+	Sin(Node* a): BasicFunction(a){name = "Sin";}
+	
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+};
 
-// class Cos: public BasicFunction{
-// public:
-// 	Cos(Node* a): BasicFunction(a){name = "Cos";}
+class Cos: public BasicFunction{
+public:
+	Cos(Node* a): BasicFunction(a){name = "Cos";}
 
-// 	void getValue();
-// 	// void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	// double deriveOperation1(vector<double>& a);
-// };
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+};
 
-// class Tan: public BasicFunction{
-// public:
-// 	Tan(Node* a): BasicFunction(a){name = "Tan";}
+class Tan: public BasicFunction{
+public:
+	Tan(Node* a): BasicFunction(a){name = "Tan";}
 
-// 	void getValue();
-// 	// void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	// double deriveOperation1(vector<double>& a);
-// };
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+};
 
-// class ArcSin: public BasicFunction{
-// public:
-// 	ArcSin(Node* a): BasicFunction(a){name = "ArcSin";}
+class ArcSin: public BasicFunction{
+public:
+	ArcSin(Node* a): BasicFunction(a){name = "ArcSin";}
 
-// 	void getValue();
-// 	// void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	// double deriveOperation1(vector<double>& a);
-// };
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+};
 
-// class ArcCos: public BasicFunction{
-// public:
-// 	ArcCos(Node* a): BasicFunction(a){name = "ArcCos";}
+class ArcCos: public BasicFunction{
+public:
+	ArcCos(Node* a): BasicFunction(a){name = "ArcCos";}
 
-// 	void getValue();
-// 	// void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	// double deriveOperation1(vector<double>& a);
-// };
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+};
 
-// class ArcTan: public BasicFunction{
-// public:
-// 	ArcTan(Node* a): BasicFunction(a){name = "ArcTan";}
+class ArcTan: public BasicFunction{
+public:
+	ArcTan(Node* a): BasicFunction(a){name = "ArcTan";}
 
-// 	void getValue();
-// 	// void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	// double deriveOperation1(vector<double>& a);
-// };
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+};
 
 
 #endif

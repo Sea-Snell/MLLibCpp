@@ -37,6 +37,11 @@ void derive(Node* expression){
 	expression->outCount = tempOutCount;
 }
 
+void clearHistory(Node* expression){
+	expression->outCount = 0;
+	expression->outputs = {};
+}
+
 NumObject showSeed(Node* expression){
 	NumObject seed = NumObject(expression->seedDims.dimentions, 0.0);
 	queue.enqueueReadBuffer(expression->seed, CL_TRUE, 0, sizeof(float) * expression->seedDims.size, &seed.values[0]);
@@ -105,85 +110,85 @@ NumObject showValue(Node* expression){
 // 	return costTotal;
 // }
 
-// NumObject gaussianRandomNums(vector<int> dimentions, double mean, double stdDev){
-// 	srand(time(NULL));
+NumObject gaussianRandomNums(vector<int> dimentions, double mean, double stdDev){
+	srand(time(NULL));
 
-// 	random_device rd;
-//     mt19937 gen(rd());
-//     normal_distribution<double> d(mean, stdDev);
+	random_device rd;
+    mt19937 gen(rd());
+    normal_distribution<double> d(mean, stdDev);
 
-// 	if (dimentions.size() == 0){
-// 		return NumObject(d(gen));
-// 	}
+	if (dimentions.size() == 0){
+		return NumObject(d(gen));
+	}
 
-// 	NumObject ans = NumObject(dimentions);
+	NumObject ans = NumObject(dimentions);
 
-// 	int total = 1;
-// 	for(int i = 0; i < dimentions.size(); i++){
-// 		total *= dimentions[i];
-// 	}
+	int total = 1;
+	for(int i = 0; i < dimentions.size(); i++){
+		total *= dimentions[i];
+	}
 
-// 	for(int i = 0; i < total; i++){
-// 		ans.values.push_back(d(gen));
-// 	}
-// 	return ans;
-// }
+	for(int i = 0; i < total; i++){
+		ans.values.push_back(d(gen));
+	}
+	return ans;
+}
 
-// NumObject trunGaussianRandomNums(vector<int> dimentions, double mean, double stdDev){
-// 	srand(time(NULL));
+NumObject trunGaussianRandomNums(vector<int> dimentions, double mean, double stdDev){
+	srand(time(NULL));
 
-// 	random_device rd;
-//     mt19937 gen(rd());
-//     normal_distribution<double> d(mean, stdDev);
+	random_device rd;
+    mt19937 gen(rd());
+    normal_distribution<double> d(mean, stdDev);
 
-// 	if (dimentions.size() == 0){
-// 		double temp = d(gen);
-// 		while (abs(temp - mean) > stdDev * 2){
-// 			temp = d(gen);
-// 		}
-// 		return NumObject(temp);
-// 	}
+	if (dimentions.size() == 0){
+		double temp = d(gen);
+		while (abs(temp - mean) > stdDev * 2){
+			temp = d(gen);
+		}
+		return NumObject(temp);
+	}
 
-// 	NumObject ans = NumObject(dimentions);
+	NumObject ans = NumObject(dimentions);
 
-// 	int total = 1;
-// 	for(int i = 0; i < dimentions.size(); i++){
-// 		total *= dimentions[i];
-// 	}
+	int total = 1;
+	for(int i = 0; i < dimentions.size(); i++){
+		total *= dimentions[i];
+	}
 
-// 	for(int i = 0; i < total; i++){
-// 		double temp = d(gen);
-// 		while (abs(temp - mean) > stdDev * 2){
-// 			temp = d(gen);
-// 		}
-// 		ans.values.push_back(temp);
-// 	}
-// 	return ans;
-// }
+	for(int i = 0; i < total; i++){
+		double temp = d(gen);
+		while (abs(temp - mean) > stdDev * 2){
+			temp = d(gen);
+		}
+		ans.values.push_back(temp);
+	}
+	return ans;
+}
 
-// NumObject uniformRandomNums(vector<int> dimentions, double low, double high){
-// 	srand(time(NULL));
+NumObject uniformRandomNums(vector<int> dimentions, double low, double high){
+	srand(time(NULL));
 
-// 	random_device rd;
-//     mt19937 gen(rd());
-//   	uniform_real_distribution<double> d(low, high);
+	random_device rd;
+    mt19937 gen(rd());
+  	uniform_real_distribution<double> d(low, high);
 
-// 	if (dimentions.size() == 0){
-// 		return NumObject(d(gen));
-// 	}
+	if (dimentions.size() == 0){
+		return NumObject(d(gen));
+	}
 
-// 	NumObject ans = NumObject(dimentions);
+	NumObject ans = NumObject(dimentions);
 
-// 	int total = 1;
-// 	for(int i = 0; i < dimentions.size(); i++){
-// 		total *= dimentions[i];
-// 	}
+	int total = 1;
+	for(int i = 0; i < dimentions.size(); i++){
+		total *= dimentions[i];
+	}
 
-// 	for(int i = 0; i < total; i++){
-// 		ans.values.push_back(d(gen));
-// 	}
-// 	return ans;
-// }
+	for(int i = 0; i < total; i++){
+		ans.values.push_back(d(gen));
+	}
+	return ans;
+}
 
 // NumObject equal(NumObject& a, NumObject& b){
 // 	NumObject ans = NumObject(a.dimentions, 0);
@@ -195,92 +200,33 @@ NumObject showValue(Node* expression){
 // 	return ans;
 // }
 
-// void numDerive(Node* expression, vector<Variable*>& variables, int n){
-// 	double delta = 0.00001;
-// 	int maxIdx = n;
-
-// 	NumObject a = expression->getValue();
-
-// 	for(int i = 0; i < variables.size(); i++){
-// 		NumObject ans = NumObject(variables[i]->value.dimentions);
-
-// 		if(n == -1){
-// 			maxIdx = variables[i]->value.values.size();
-// 		}
-
-// 		for(int x = 0; x < maxIdx; x++){
-// 			variables[i]->value.values[x] += delta;
-// 			NumObject b = expression->getValue();
-// 			ans.values.push_back((b.values[0] - a.values[0]) / delta);
-// 			variables[i]->derivative = ans;
-// 			variables[i]->value.values[x] -= delta;
-// 		}
-
-// 		if(n != -1){
-// 			for(int x = 0; x < (variables[i]->value.values.size() - maxIdx); x++){
-// 				ans.values.push_back(0.0);
-// 			}
-// 		}
-
-// 		variables[i]->derivative = ans;
-// 	}
-// }
-
-// void numDeriveTime(Node* expression, vector<vector<NumObject>>& timeVals, vector<Constant*>& sub, vector<Variable*>& variables, int n){
-// 	double delta = 0.00000000000000001;
-// 	int maxIdx = n;
-
-// 	NumObject a = getValueTime(expression, timeVals, sub);
-
-// 	for(int i = 0; i < variables.size(); i++){
-// 		NumObject ans = NumObject(variables[i]->value.dimentions);
-
-// 		if(n == -1){
-// 			maxIdx = variables[i]->value.values.size();
-// 		}
-
-// 		for(int x = 0; x < maxIdx; x++){
-// 			variables[i]->value.values[x] += delta;
-// 			NumObject b = getValueTime(expression, timeVals, sub);
-// 			ans.values.push_back((b.values[0] - a.values[0]) / delta);
-// 			variables[i]->derivative = ans;
-// 			variables[i]->value.values[x] -= delta;
-// 		}
-
-// 		if(n != -1){
-// 			for(int x = 0; x < (variables[i]->value.values.size() - maxIdx); x++){
-// 				ans.values.push_back(0.0);
-// 			}
-// 		}
-
-// 		variables[i]->derivative = ans;
-// 	}
-// }
-
-// vector<NumObject> compareDerivatives(Node* expression, vector<Variable*>& variables, int n){
+// float compareDerivatives(Node* expression, Variable* variable, float delta){
 // 	derive(expression);
+// 	vector<float> baseDeriv = showSeed(variable).values;
 
-// 	vector<NumObject> a;
-// 	for(int i = 0; i < variables.size(); i++){
-// 		a.push_back(variables[i]->derivative);
+
+// 	float diff = 0.0;
+// 	float sumVal = 0.0;
+
+// 	for (int i = 0; i < variable->resultDims.size; i++){
+// 		variable->value.values[i] += delta;
+// 		initalize(expression);
+// 		float val1 = getValue(expression).values[0];
+
+
+// 		variable->value.values[i] -= 2.0 * delta;
+// 		initalize(expression);
+// 		float val2 = getValue(expression).values[0];
+
+// 		float approxDeriv = (val1 - val2) / (2 * delta);
+// 		diff += (approxDeriv - baseDeriv[i]) * (approxDeriv - baseDeriv[i]);
+// 		sumVal += (approxDeriv + baseDeriv[i]) * (approxDeriv + baseDeriv[i]);
+
+// 		variable->value.values[i] += delta;
+// 		initalize(expression);
 // 	}
 
-// 	numDerive(expression, variables, n);
-
-// 	vector<NumObject> b;
-// 	for(int i = 0; i < variables.size(); i++){
-// 		b.push_back(variables[i]->derivative);
-// 	}
-
-// 	vector<NumObject> ans;
-// 	for(int i = 0; i < b.size(); i++){
-// 		NumObject temp = NumObject(b[i].dimentions);
-// 		for(int x = 0; x < b[i].values.size(); x++){
-// 			temp.values.push_back(abs(a[i].values[x] - b[i].values[x]));
-// 		}
-// 		ans.push_back(temp);
-// 	}
-// 	return ans;
+// 	return sqrt(diff) / sqrt(sumVal);
 // }
 
 // vector<NumObject> compareDerivativesTime(Node* expression, vector<vector<NumObject>>& timeVals, vector<Constant*>& sub, vector<Variable*>& variables, int n){

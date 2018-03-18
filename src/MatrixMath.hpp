@@ -5,62 +5,64 @@
 class MatMul: public Node{
 public:
 	MatMul(Node* a, Node* b);
-	NumObject getValue(int t = 0, int tf = 0);
-	void derive(NumObject& seed, int t = 0, int tf = 0);
+
+	void getDimentions();
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
 };
 
 
 class Sum: public Node{
 public:
 	int dimention;
-
+	int preSum;
 	Sum(Node* a, int dimentionVal = 0);
-	NumObject getValue(int t = 0, int tf = 0);
-	void derive(NumObject& seed, int t = 0, int tf = 0);
+
+	void getDimentions();
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
 	string describe();
 };
 
-class Mean: public Node{
+class Mean: public Sum{
 public:
-	int dimention;
+	Mean(Node* a, int dimentionVal = 0): Sum(a, dimentionVal){name = "Mean";}
 
-	Mean(Node* a, int dimentionVal = 0);
-	NumObject getValue(int t = 0, int tf = 0);
-	double operation(vector<double>& a);
-	void derive(NumObject& seed, int t = 0, int tf = 0);
-	string describe();
+	void getValue();
+	void derive();
 };
-
-NumObject expandDerivative(NumObject& a, int dimention, int size);
 
 
 class Trans: public Node{
 public:
-	vector<int> perm;
+	Trans(Node* a);
 
-	Trans(Node* a, vector<int> permutations);
-	NumObject getValue(int t = 0, int tf = 0);
-	int flipIdx(int num, NumObject& a, NumObject& b);
-	int flipIdxDerive(int num, NumObject& a, NumObject& b);
-	void derive(NumObject& seed, int t = 0, int tf = 0);
-	string describe();
+	void getDimentions();
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
 };
 
 class Max: public Node{
 public:
 	int dimention;
-	vector<NumObject> idx;
-
+	int preSum;
+	cl::Buffer idx;
 	Max(Node* a, int dimentionVal = 0);
-	NumObject getValue(int t = 0, int tf = 0);
-	void derive(NumObject& seed, int t = 0, int tf = 0);
+
+	void getDimentions();
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
 	string describe();
 };
 
 class Min: public Max{
 public:
 	Min(Node* a, int dimentionVal = 0): Max(a, dimentionVal){name = "Min";}
-	NumObject getValue(int t = 0, int tf = 0);
+	void getValue();
 };
 
 #endif

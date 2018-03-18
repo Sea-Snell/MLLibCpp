@@ -19,6 +19,8 @@ extern cl::Program program;
 extern cl::make_kernel<cl::Buffer> zeroBuffer;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> reduceSum;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> explodeUp;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, float> gradientDescentStep;
+
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> add;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> subtract;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> multiply;
@@ -26,6 +28,23 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffe
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> pow_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> ln;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> exp_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, float> log_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> sin_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> cos_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> tan_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> asin_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> acos_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> atan_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> sum_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_;
+
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> multiplyDerivative;
@@ -33,6 +52,28 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffe
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divideDerivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative0;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer> logDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sinDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> cosDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> asinDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> acosDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> atanDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2Derivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2Derivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> sumDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int> meanDerivativeSmallSeed;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> maxDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed;
 
 void initialize();
 

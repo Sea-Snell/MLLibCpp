@@ -2,25 +2,18 @@
 #define OPTIMIZERS_H
 #include "Node.hpp"
 
-class GradientDescent{
-public:
-	NumObject learningRate;
+void gradientDescent(vector<Variable*>& variables, double learningRate);
 
-	GradientDescent(double LR);
-	void minimize(vector<Variable*>& variables);
-	double operation(vector<double>& a);
-};
+// class MomentumGradientDescent{
+// public:
+// 	NumObject learningRate;
+// 	vector<NumObject> velocity;
+// 	NumObject momentumRate;
 
-class MomentumGradientDescent{
-public:
-	NumObject learningRate;
-	vector<NumObject> velocity;
-	NumObject momentumRate;
-
-	MomentumGradientDescent(double LR, double momentum);
-	void minimize(vector<Variable*>& variables);
-	double operation1(vector<double>& a);
-	double operation2(vector<double>& a);
-};
+// 	MomentumGradientDescent(double LR, double momentum);
+// 	void minimize(vector<Variable*>& variables);
+// 	double operation1(vector<double>& a);
+// 	double operation2(vector<double>& a);
+// };
 
 #endif

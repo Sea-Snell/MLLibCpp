@@ -7,6 +7,8 @@ cl::Program program;
 cl::make_kernel<cl::Buffer> zeroBuffer(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> reduceSum(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> explodeUp(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, float> gradientDescentStep(cl::Kernel(program, ""));
+
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> add(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> subtract(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> multiply(cl::Kernel(program, ""));
@@ -14,6 +16,23 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divi
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> pow_(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer> ln(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer> exp_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, float> log_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> sin_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> cos_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> tan_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> asin_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> acos_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> atan_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int, int> sum_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_(cl::Kernel(program, ""));
+
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> multiplyDerivative(cl::Kernel(program, ""));
@@ -21,6 +40,28 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divi
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divideDerivative1(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative0(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer> logDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sinDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> cosDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> asinDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> acosDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> atanDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative0(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative0(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2Derivative0(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2Derivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative0(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> sumDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int> meanDerivativeSmallSeed(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> maxDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed(cl::Kernel(program, ""));
 
 void initialize(){
 	vector<cl::Platform> allPlatforms;
@@ -68,6 +109,8 @@ void initialize(){
 	zeroBuffer = cl::make_kernel<cl::Buffer>(cl::Kernel(program, "zeroBuffer"));
 	reduceSum = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "reduceSum"));
 	explodeUp = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "explodeUp"));
+	gradientDescentStep = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, float>(cl::Kernel(program, "gradientDescentStep"));
+
 	add = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "add"));
 	subtract = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "subtract"));
 	multiply = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "multiply"));
@@ -75,6 +118,23 @@ void initialize(){
 	pow_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "pow_"));
 	ln = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "ln"));
 	exp_ = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "exp_"));
+	log_ = cl::make_kernel<cl::Buffer, cl::Buffer, float>(cl::Kernel(program, "log_"));
+	sin_ = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "sin_"));
+	cos_ = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "cos_"));
+	tan_ = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "tan_"));
+	asin_ = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "asin_"));
+	acos_ = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "acos_"));
+	atan_ = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "atan_"));
+	matMul2x2 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x2"));
+	matMul2x1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x1"));
+	matMul1x2 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x2"));
+	matMul1x1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x1"));
+	sum_ = cl::make_kernel<cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "sum_"));
+	mean_ = cl::make_kernel<cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "mean_"));
+	trans = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "trans"));
+	max_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "max_"));
+	min_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "min_"));
+
 	addDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "addDerivative"));
 	subtractDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "subtractDerivative1"));
 	multiplyDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "multiplyDerivative"));
@@ -82,6 +142,28 @@ void initialize(){
 	divideDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "divideDerivative1"));
 	powDerivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "powDerivative0"));
 	powDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "powDerivative1"));
+	logDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "logDerivative"));
+	sinDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "sinDerivative"));
+	cosDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "cosDerivative"));
+	tanDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "tanDerivative"));
+	asinDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "asinDerivative"));
+	acosDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "acosDerivative"));
+	atanDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "atanDerivative"));
+	matMul2x2Derivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x2Derivative0"));
+	matMul2x2Derivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x2Derivative1"));
+	matMul2x1Derivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x1Derivative0"));
+	matMul2x1Derivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x1Derivative1"));
+	matMul1x2Derivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x2Derivative0"));
+	matMul1x2Derivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x2Derivative1"));
+	matMul1x1Derivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x1Derivative0"));
+	matMul1x1Derivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x1Derivative1"));
+	sumDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "sumDerivative"));
+	meanDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "meanDerivative"));
+	meanDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "meanDerivativeSmallSeed"));
+	transDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "transDerivative1"));
+	transDerivative2 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "transDerivative2"));
+	maxDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "maxDerivative"));
+	maxDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "maxDerivativeSmallSeed"));
 }
 
 NumObject::NumObject(){}

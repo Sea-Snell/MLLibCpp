@@ -1,6 +1,8 @@
 #include "Node.hpp"
 #include "Math.hpp"
 #include "HelperFunctions.hpp"
+#include "MatrixMath.hpp"
+#include "Optimizers.hpp"
 #include <time.h>
 
 // void rubixNet();
@@ -8,34 +10,50 @@
 // void MNISTFFNN();
 // vector<NumObject> getTrain(int n);
 // vector<NumObject> getTest(int n);
-// void linearReg();
+void linearReg();
 
 int main(){
 
 	initialize();
 
-	int n = 100000000;
-	vector<float> v1 = {};
-	vector<float> v2 = {};
-	for (int i = 0; i < n; i++){
-		v1.push_back(2.0);
-		v2.push_back(5.0);
-	}
-
-	Variable&& test1 = Variable(NumObject(v1, vector<int> {n}));
-	Variable&& test2 = Variable(NumObject(v2, vector<int> {n}));
-
-	Node* expression1 = new Multiply(&test1, &test2);
-
-	initalize(expression1);
-
-	clock_t t1 = clock();
-	getValue(expression1);
-	clock_t t2 = clock();
-
-	cout << ((float)t2 - (float)t1) / CLOCKS_PER_SEC << endl;
+	linearReg();
 
 	return 0;
+}
+
+void linearReg(){
+	Constant&& xData = Constant(gaussianRandomNums(vector<int>{100, 101}, -10.0, 10.0));
+	for(int i = 0; i < xData.value.dimentions[0]; i++){
+		xData.value.values[i * xData.value.dimentions[1] + 100] = 1.0;
+	}
+
+	Node* yValExpression = new Add(new Sum(new Multiply(&xData, new Constant(NumObject(0.5))), 1), new Constant(NumObject(0.5)));
+	initalize(yValExpression);
+	Constant&& yData = Constant(getValue(yValExpression));
+	clearHistory(&xData);
+
+	Variable&& weights = Variable(gaussianRandomNums(vector<int>{101}, -0.5, 0.5));
+
+	Node* hypothesis = new MatMul(&xData, &weights);
+	Node* cost = new Mean(new Pow(new Subtract(hypothesis, &yData), new Constant(NumObject(2.0))));
+
+	initalize(cost);
+
+	vector<Variable*> variables = {&weights};
+
+	int start = clock();
+	for(int i = 0; i < 10000; i++){
+		derive(cost);
+		gradientDescent(variables, 0.00003);
+
+		// if(i % 10 == 0){
+		// 	cout << showValue(cost).describe() << endl;
+		// }
+	}
+	int end = clock();
+	cout << (end - start) / double(CLOCKS_PER_SEC) << endl;
+	// weights.updateHostVals();
+	// cout << weights.describe() << endl;
 }
 
 // void rubixNet(){
@@ -530,32 +548,6 @@ int main(){
 // 	vector<NumObject> ans = {temp[0], yFinal};
 
 // 	return ans;
-// }
-
-// void linearReg(){
-// 	Constant&& xData = Constant(gaussianRandomNums(vector<int>{100, 101}, -10.0, 10.0));
-// 	for(int i = 0; i < xData.value.dimentions[0]; i++){
-// 		xData.value.values[i * xData.value.dimentions[1] + 100] = 1.0;
-// 	}
-// 	Constant&& yData = Constant(Add(new Sum(new Multiply(&xData, new Constant(NumObject(0.5))), 1), new Constant(NumObject(0.5))).getValue());
-// 	Variable&& weights = Variable(gaussianRandomNums(vector<int>{101}, -0.5, 0.5));
-
-// 	Node* hypothesis = new MatMul(&xData, &weights);
-// 	Node* cost = new MeanSquared(hypothesis, &yData);
-
-// 	GradientDescent trainer = GradientDescent(0.00001);
-
-// 	vector<Variable*> variables = {&weights};
-// 	for(int i = 0; i < 1000000; i++){
-// 		NumObject costVal = derive(cost);
-// 		trainer.minimize(variables);
-
-// 		if(i % 10 == 0){
-// 			cout << costVal.describe() << endl;
-// 		}
-// 	}
-
-// 	cout << weights.describe() << endl;
 // }
 
 

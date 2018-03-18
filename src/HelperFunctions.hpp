@@ -6,6 +6,7 @@ NumObject getValue(Node* expression);
 void initalize(Node* expression);
 
 void derive(Node* expression);
+void clearHistory(Node* expression);
 
 NumObject showSeed(Node* expression);
 NumObject showValue(Node* expression);
@@ -14,15 +15,14 @@ NumObject showValue(Node* expression);
 
 // NumObject getValueTime(Node* expression, vector<vector<NumObject>>& timeVals, vector<Constant*>& sub);
 
-// NumObject gaussianRandomNums(vector<int> dimentions, double mean, double stdDev);
-// NumObject trunGaussianRandomNums(vector<int> dimentions, double mean, double stdDev);
-// NumObject uniformRandomNums(vector<int> dimentions, double low, double high);
+NumObject gaussianRandomNums(vector<int> dimentions, double mean, double stdDev);
+NumObject trunGaussianRandomNums(vector<int> dimentions, double mean, double stdDev);
+NumObject uniformRandomNums(vector<int> dimentions, double low, double high);
 
 // NumObject equal(NumObject& a, NumObject& b);
 
-// void numDerive(Node* expression, vector<Variable*>& variables, int n = -1);
-// void numDeriveTime(Node* expression, vector<vector<NumObject>>& timeVals, vector<Constant*>& sub, vector<Variable*>& variables, int n = -1);
-// vector<NumObject> compareDerivatives(Node* expression, vector<Variable*>& variables, int n = -1);
+
+// float compareDerivatives(Node* expression, Variable* variable, float delta = 0.00001);
 // vector<NumObject> compareDerivativesTime(Node* expression, vector<vector<NumObject>>& timeVals, vector<Constant*>& sub, vector<Variable*>& variables, int n = -1);
 
 // NumObject oneHot(NumObject items, int low, int high);
