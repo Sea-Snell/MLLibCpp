@@ -12,6 +12,8 @@
 #include <iostream>
 #include <fstream>
 #include <dirent.h>
+#include <ctime>
+
 
 void MNISTFFNN();
 vector<vector<double>> getTrain(int n);
@@ -22,7 +24,7 @@ void LSTMRapper();
 
 int main(){
 
-	LSTMRapper();
+	linearReg();
 	
 
 	return 0;
@@ -569,13 +571,16 @@ void linearReg(){
 
 	initalize(cost);
 
-	for(int i = 0; i < 100; i++){
+	int start = clock();
+	for(int i = 0; i < 10000; i++){
 		trainer.minimize(cost, variables, noClear);
 
-		if(i % 10 == 0){
-			cout << getValue(cost).describe() << endl;
-		}
+		// if(i % 10 == 0){
+		// 	cout << getValue(cost).describe() << endl;
+		// }
 	}
+	int stop = clock();
+	cout << (stop - start) / double(CLOCKS_PER_SEC) << endl;
 
-	cout << weights.describe() << endl;
+	// cout << weights.describe() << endl;
 }
