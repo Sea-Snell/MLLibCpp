@@ -20,7 +20,7 @@ void linearReg();
 
 int main(){
 
-	rubixNet();
+	linearReg();
 
 	return 0;
 }
@@ -520,27 +520,31 @@ vector<NumObject> getTest(int n){
 }
 
 void linearReg(){
-	Constant&& xData = Constant(gaussianRandomNums(vector<int>{100, 101}, -100.0, 100.0));
+	Constant&& xData = Constant(gaussianRandomNums(vector<int>{100, 1001}, -100.0, 100.0));
 	for(int i = 0; i < xData.value.dimentions[0]; i++){
-		xData.value.values[i * xData.value.dimentions[1] + 100] = 1.0;
+		xData.value.values[i * xData.value.dimentions[1] + 1000] = 1.0;
 	}
 	Constant&& yData = Constant(Add(new Sum(new Multiply(&xData, new Constant(NumObject(0.5))), 1), new Constant(NumObject(0.5))).getValue());
-	Variable&& weights = Variable(gaussianRandomNums(vector<int>{101}, -0.5, 0.5));
+	Variable&& weights = Variable(gaussianRandomNums(vector<int>{1001}, -0.5, 0.5));
 
 	Node* hypothesis = new MatMul(&xData, &weights);
 	Node* cost = new MeanSquared(hypothesis, &yData);
 
-	GradientDescent trainer = GradientDescent(0.00001);
+	GradientDescent trainer = GradientDescent(0.000000001);
 
 	vector<Variable*> variables = {&weights};
-	for(int i = 0; i < 100; i++){
+
+	int start = clock();
+	for(int i = 0; i < 50000; i++){
 		NumObject costVal = derive(cost);
 		trainer.minimize(variables);
 
-		if(i % 10 == 0){
+		if(i % 10000 == 0){
 			cout << costVal.describe() << endl;
 		}
 	}
+	int end = clock();
+	cout << "Time: " << (end - start) / double(CLOCKS_PER_SEC) << endl;
 
 	cout << weights.describe() << endl;
 }
