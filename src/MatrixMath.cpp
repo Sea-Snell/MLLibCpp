@@ -62,7 +62,7 @@ void MatMul::getValue(){
 		matMul1x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
 	}
 	else if (inputs[1]->resultDims.rank == 1){
-		matMul2x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+		matMul2x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size + (groupSize - resultDims.size % groupSize)), cl::NDRange(groupSize)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
 	}
 	else{
 		matMul2x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);

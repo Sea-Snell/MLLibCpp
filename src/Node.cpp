@@ -287,6 +287,7 @@ string GPUDimentions::describe(){
 Node::Node(){
 	outCount = 0;
 	getCount = 0;
+	groupSize = 64;
 }
 
 string Node::describe(){

@@ -128,6 +128,8 @@ public:
 	int outCount;
 	int getCount;
 
+	int groupSize;
+
 	Node();
 	virtual void getValue() = 0;
 	virtual void getDimentions() = 0;
