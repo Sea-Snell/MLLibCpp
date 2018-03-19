@@ -48,9 +48,9 @@ void linearReg(){
 		derive(cost);
 		gradientDescent(variables, 0.0000001);
 
-		if(i % 10 == 0){
-			cout << i << ", " << showValue(cost).describe() << endl;
-		}
+		// if(i % 10 == 0){
+		// 	cout << i << ", " << showValue(cost).describe() << endl;
+		// }
 	}
 	cout << showValue(cost).describe() << endl;
 	int end = clock();

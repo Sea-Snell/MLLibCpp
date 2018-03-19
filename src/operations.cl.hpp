@@ -112,6 +112,8 @@ void kernel matMul2x1(constant const int* ADim, global const float* A, constant 
 				total += A[globalId * bSize + i * localSize + x] * BLocal[x];
 			}
 		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 
 	if (localSize * split + localId < bSize){
@@ -287,6 +289,8 @@ void kernel matMul2x1Derivative0(constant const int* BDim, global const float* B
 }
 
 void kernel matMul2x1Derivative1(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	local float seedLocal [GROUP_SIZE];
+
 	int globalId = get_global_id(0);
 	int ASize2 = ADim[3];
 	int localId = get_local_id(0);
@@ -295,17 +299,18 @@ void kernel matMul2x1Derivative1(constant const int* ADim, global const float* A
 	int split = seedSize / localSize;
 	float total = 0.0;
 
-	local float seedLocal [GROUP_SIZE];
-
 	for (int i = 0; i < split; i++){
 		seedLocal[localId] = seed[localSize * i + localId];
 		
 		barrier(CLK_LOCAL_MEM_FENCE);
+
 		if (globalId < ASize2){
 			for (int x = 0; x < localSize; x++){
 				total += A[(i * localSize + x) * ASize2 + globalId] * seedLocal[x];
 			}
 		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 
 	if (localSize * split + localId < seedSize){

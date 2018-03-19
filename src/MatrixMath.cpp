@@ -62,7 +62,11 @@ void MatMul::getValue(){
 		matMul1x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
 	}
 	else if (inputs[1]->resultDims.rank == 1){
-		matMul2x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size + (groupSize - resultDims.size % groupSize)), cl::NDRange(groupSize)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+		int globalSize = resultDims.size + (groupSize - resultDims.size % groupSize);
+		if (resultDims.size % groupSize == 0){
+			globalSize -= groupSize;
+		}
+		matMul2x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(groupSize)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
 	}
 	else{
 		matMul2x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
@@ -117,7 +121,11 @@ void MatMul::derive(){
 				matMul1x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1]);
 			}
 			else if (inputs[1]->resultDims.rank == 1){
-				matMul2x1Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size + (groupSize - outDims[1].size % groupSize)), cl::NDRange(groupSize)), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[1]);
+				int globalSize = outDims[1].size + (groupSize - outDims[1].size % groupSize);
+				if (outDims[1].size % groupSize == 0){
+					globalSize -= groupSize;
+				}
+				matMul2x1Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(groupSize)), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[1]);
 			}
 			else{
 				matMul2x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1]);
