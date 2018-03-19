@@ -57,7 +57,6 @@ public:
 	Ln(Node* a): BasicFunction(a){name = "Ln";}
 
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 
@@ -66,7 +65,6 @@ public:
 	Exp(Node* a): BasicFunction(a){name = "Exp";}
 
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 
@@ -75,7 +73,6 @@ public:
 	float base;
 	Log(Node* a, float baseVal = 10.0);
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 	string describe();
 };
@@ -85,7 +82,6 @@ public:
 	Sin(Node* a): BasicFunction(a){name = "Sin";}
 	
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 
@@ -94,7 +90,6 @@ public:
 	Cos(Node* a): BasicFunction(a){name = "Cos";}
 
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 
@@ -103,7 +98,6 @@ public:
 	Tan(Node* a): BasicFunction(a){name = "Tan";}
 
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 
@@ -112,7 +106,6 @@ public:
 	ArcSin(Node* a): BasicFunction(a){name = "ArcSin";}
 
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 
@@ -121,7 +114,6 @@ public:
 	ArcCos(Node* a): BasicFunction(a){name = "ArcCos";}
 
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 
@@ -130,7 +122,6 @@ public:
 	ArcTan(Node* a): BasicFunction(a){name = "ArcTan";}
 
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 

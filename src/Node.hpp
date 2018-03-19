@@ -12,6 +12,8 @@
 #include "openCL.hpp"
 using namespace std;
 
+#define GROUP_SIZE 16
+
 extern cl::Context context;
 extern cl::CommandQueue queue;
 extern cl::Program program;
@@ -45,6 +47,8 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> meanSquared;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> crossEntropy;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> sigmoid;
 
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1;
@@ -53,13 +57,13 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffe
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divideDerivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative0;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative1;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer> logDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sinDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> cosDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> asinDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> acosDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> atanDerivative;
+extern cl::make_kernel<cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer> logDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sinDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> cosDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> asinDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> acosDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> atanDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative0;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative0;
@@ -77,6 +81,8 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanSquaredDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivativeSmallSeed;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> crossEntropyDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropyDerivativeSmallSeed;
 
 
 void initialize();
@@ -128,8 +134,6 @@ public:
 	int outCount;
 	int getCount;
 
-	int groupSize;
-
 	Node();
 	virtual void getValue() = 0;
 	virtual void getDimentions() = 0;
@@ -177,6 +181,7 @@ class BasicFunction: public Node{
 public:
 	BasicFunction(Node* a);
 	void getDimentions();
+	void deriveDimentions(GPUDimentions* tempSeed);
 };
 
 

@@ -90,61 +90,97 @@ string MeanSquared::describe(){
 	return name + "(" + inputs[0]->describe() + ", " + inputs[1]->describe() + ", " + to_string(dimention) + ")";
 }
 
-// CrossEntropy::CrossEntropy(Node* hypothesis, Node* y, int dimentionVal){
-// 	outCount = 0;
-// 	inputs.push_back(hypothesis);
-// 	inputs.push_back(y);
-// 	hypothesis->outCount += 1;
-// 	y->outCount += 1;
-// 	name = "CrossEntropy";
-// 	dimention = dimentionVal;
-// 	dCallCount = 0;
-// 	gCallCount = 0;
-// }
 
-// NumObject CrossEntropy::getValue(int t, int tf){
-// 	gCallCount += 1;
-// 	if(gCallCount > 1){
-// 		if(gCallCount >= outCount){
-// 			gCallCount = 0;
-// 		}
-// 		return derivativeMemo[t];
-// 	}
-// 	if(gCallCount >= outCount){
-// 		gCallCount = 0;
-// 	}
 
-// 	NumObject hypothesis = inputs[0]->getValue(t, tf);
-// 	NumObject y = inputs[1]->getValue(t, tf);
 
-// 	vector<NumObject> items1 = {hypothesis, y};
-// 	NumObject temp = mapVals(this, &CrossEntropy::operation, items1);
-// 	NumObject ans = reduceSumByDimention(temp, temp.rank);
-// 	ans.values[0] /= temp.dimentions[dimention];
-// 	return memoize(ans, t, tf);
-// }
 
-// double CrossEntropy::operation(vector<double>& a){
-// 	return -(a[1] * log(a[0]) + (1.0 - a[1]) * log(1.0 - a[0]));
-// }
+CrossEntropy::CrossEntropy(Node* hypothesis, Node* y, int dimentionVal){
+	dimention = dimentionVal;
+	inputs.push_back(hypothesis);
+	inputs.push_back(y);
+	hypothesis->outputs.push_back(this);
+	y->outputs.push_back(this);
+	hypothesis->outCount += 1;
+	y->outCount += 1;
+	name = "CrossEntropy";
+}
 
-// void CrossEntropy::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, NumObject(-1.0 / inputs[0]->derivativeMemo[t].dimentions[dimention]), inputs[1]->derivativeMemo[t], inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &CrossEntropy::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
+void CrossEntropy::getDimentions(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
 
-// double CrossEntropy::deriveOperation1(vector<double>& a){
-// 	return (a[0] * a[1] * (a[2] - a[3])) / (a[3] * (1.0 - a[3]));
-// }
+	inputs[0]->getDimentions();
+	inputs[1]->getDimentions();
 
-// string CrossEntropy::describe(){
-// 	return name + "(" + inputs[0]->describe() + ", " + inputs[1]->describe() + ", " + to_string(dimention) + ")";
-// }
+	resultDims.rank = inputs[0]->resultDims.rank - 1;
+	resultDims.size = inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention];
+	resultDims.dimentions = {};
+	for (int i = 0; i < inputs[0]->resultDims.rank; i++){
+		if (i != dimention){
+			resultDims.dimentions.push_back(inputs[0]->resultDims.dimentions[i]);
+		}
+	}
+
+	preSum = 1;
+	for (int i = dimention + 1; i < inputs[0]->resultDims.rank; i++){
+		preSum *= inputs[0]->resultDims.dimentions[i];
+	}
+
+	resultDims.setBuf();
+
+	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	getCount = (getCount + 1) % outCount;
+}
+
+void CrossEntropy::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	inputs[1]->getValue();
+	
+	crossEntropy(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size), cl::NullRange), inputs[0]->result, inputs[1]->result, crossResult);
+	mean_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), crossResult, result, inputs[0]->resultDims.dimentions[dimention], preSum);
+	getCount = (getCount + 1) % outCount;
+}
+
+void CrossEntropy::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		outDims.push_back(inputs[0]->resultDims);
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
+
+void CrossEntropy::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
+				crossEntropyDerivativeSmallSeed(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, inputs[0]->result, inputs[1]->result, out[0], inputs[0]->resultDims.dimentions[dimention]);
+				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			}
+			else{
+				crossEntropyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, inputs[0]->result, inputs[1]->result, out[0], inputs[0]->resultDims.dimentions[dimention], preSum);
+				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			}
+			inputs[0]->derive();
+		}
+	}
+}
+
+string CrossEntropy::describe(){
+	return name + "(" + inputs[0]->describe() + ", " + inputs[1]->describe() + ", " + to_string(dimention) + ")";
+}
 
 // CrossEntropySoftmax::CrossEntropySoftmax(Node* hypothesis, Node* y, int dimentionVal, int meanDimentionVal){
 // 	outCount = 0;

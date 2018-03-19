@@ -1,4 +1,4 @@
-#define GROUP_SIZE 64
+#define GROUP_SIZE 16
 
 
 void kernel zeroBuffer(global float* A){
@@ -204,6 +204,16 @@ void kernel meanSquared(global const float* hypothesis, global const float* y, g
 	diffSquared[get_global_id(0)] = diff * diff;
 }
 
+void kernel crossEntropy(global const float* hypothesis, global const float* y, global float* C){
+	float hypVal = hypothesis[get_global_id(0)];
+	float yVal = y[get_global_id(0)];
+	C[get_global_id(0)] = -(yVal * log(hypVal) + ((float)(1.0) - yVal) * log((float)(1.0) - hypVal));
+}
+
+void kernel sigmoid(global const float* A, global float* B){
+	B[get_global_id(0)] = ((float)(1.0) / ((float)(1.0) + exp(-A[get_global_id(0)])));
+}
+
 
 
 
@@ -240,32 +250,32 @@ void kernel powDerivative1(constant const int* ADim, global const float* A, cons
 	out[get_global_id(0)] = log(A[get_global_id(0) % ADim[0]]) * C[get_global_id(0) % CDim[0]] * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel logDerivative(constant const int* ADim, global const float* A, const float baseLN, constant const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = (1.0 / (baseLN * A[get_global_id(0) % ADim[0]])) * seed[get_global_id(0) % seedDim[0]];
+void kernel logDerivative(global const float* A, const float baseLN, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = (1.0 / (baseLN * A[get_global_id(0)])) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel sinDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = cos(A[get_global_id(0) % ADim[0]]) * seed[get_global_id(0) % seedDim[0]];
+void kernel sinDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = cos(A[get_global_id(0)]) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel cosDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = -sin(A[get_global_id(0) % ADim[0]]) * seed[get_global_id(0) % seedDim[0]];
+void kernel cosDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = -sin(A[get_global_id(0)]) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel tanDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = pow((float)(1.0 / cos(A[get_global_id(0) % ADim[0]])), (float)(2.0)) * seed[get_global_id(0) % seedDim[0]];
+void kernel tanDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = pow((float)(1.0 / cos(A[get_global_id(0)])), (float)(2.0)) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel asinDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = (1.0 / sqrt((float)1.0 - pow(A[get_global_id(0) % ADim[0]], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
+void kernel asinDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = (1.0 / sqrt((float)1.0 - pow(A[get_global_id(0)], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel acosDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = (-1.0 / sqrt((float)1.0 - pow(A[get_global_id(0) % ADim[0]], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
+void kernel acosDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = (-1.0 / sqrt((float)1.0 - pow(A[get_global_id(0)], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel atanDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = (1.0 / (1.0 + pow(A[get_global_id(0) % ADim[0]], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
+void kernel atanDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = (1.0 / (1.0 + pow(A[get_global_id(0)], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
 }
 
 void kernel matMul2x2Derivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
@@ -383,6 +393,16 @@ void kernel meanSquaredDerivative(constant const int* seedDim, global const floa
 
 void kernel meanSquaredDerivativeSmallSeed(constant const int* seedDim, global const float* seed, global const float* differenceMemo, global float* out, const int dimentionSize){
 	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * differenceMemo[get_global_id(0)] * (2.0 / ((float)dimentionSize));
+}
+
+void kernel crossEntropyDerivative(constant const int* seedDim, global const float* seed, global const float* hypothesis, global const float* y, global float* out, const int dimentionSize, const int preSum){
+	float hypVal = hypothesis[get_global_id(0)];
+	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]] * (1.0 / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
+}
+
+void kernel crossEntropyDerivativeSmallSeed(constant const int* seedDim, global const float* seed, global const float* hypothesis, global const float* y, global float* out, const int dimentionSize){
+	float hypVal = hypothesis[get_global_id(0)];
+	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * (1.0 / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
 }
 
 

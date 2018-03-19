@@ -36,7 +36,8 @@ void linearReg(){
 	Variable&& weights = Variable(gaussianRandomNums(vector<int>{640}, -0.5, 0.5));
 
 	Node* hypothesis = new MatMul(&xData, &weights);
-	Node* cost = new MeanSquared(hypothesis, &yData);
+	// Node* cost = new MeanSquared(hypothesis, &yData);
+	Node* cost = new Mean(new Pow(new Subtract(hypothesis, &yData), new Constant(2.0)));
 
 	initalize(cost);
 

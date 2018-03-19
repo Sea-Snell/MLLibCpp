@@ -33,6 +33,8 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans(cl::Kernel(program, ""
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> meanSquared(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> crossEntropy(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> sigmoid(cl::Kernel(program, ""));
 
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1(cl::Kernel(program, ""));
@@ -41,13 +43,13 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divi
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> divideDerivative1(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative0(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> powDerivative1(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer> logDerivative(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sinDerivative(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> cosDerivative(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanDerivative(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> asinDerivative(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> acosDerivative(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> atanDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer> logDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sinDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> cosDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> asinDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> acosDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> atanDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative0(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative1(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative0(cl::Kernel(program, ""));
@@ -65,6 +67,8 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> maxDer
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanSquaredDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivativeSmallSeed(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> crossEntropyDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropyDerivativeSmallSeed(cl::Kernel(program, ""));
 
 void initialize(){
 	vector<cl::Platform> allPlatforms;
@@ -138,6 +142,8 @@ void initialize(){
 	max_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "max_"));
 	min_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "min_"));
 	meanSquared = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "meanSquared"));
+	crossEntropy = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "crossEntropy"));
+	sigmoid = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "sigmoid"));
 
 	addDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "addDerivative"));
 	subtractDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "subtractDerivative1"));
@@ -146,13 +152,13 @@ void initialize(){
 	divideDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "divideDerivative1"));
 	powDerivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "powDerivative0"));
 	powDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "powDerivative1"));
-	logDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "logDerivative"));
-	sinDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "sinDerivative"));
-	cosDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "cosDerivative"));
-	tanDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "tanDerivative"));
-	asinDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "asinDerivative"));
-	acosDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "acosDerivative"));
-	atanDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "atanDerivative"));
+	logDerivative = cl::make_kernel<cl::Buffer, float, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "logDerivative"));
+	sinDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "sinDerivative"));
+	cosDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "cosDerivative"));
+	tanDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "tanDerivative"));
+	asinDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "asinDerivative"));
+	acosDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "acosDerivative"));
+	atanDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "atanDerivative"));
 	matMul2x2Derivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x2Derivative0"));
 	matMul2x2Derivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x2Derivative1"));
 	matMul2x1Derivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x1Derivative0"));
@@ -170,6 +176,8 @@ void initialize(){
 	maxDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "maxDerivativeSmallSeed"));
 	meanSquaredDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "meanSquaredDerivative"));
 	meanSquaredDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "meanSquaredDerivativeSmallSeed"));
+	crossEntropyDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "crossEntropyDerivative"));
+	crossEntropyDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "crossEntropyDerivativeSmallSeed"));
 }
 
 NumObject::NumObject(){}
@@ -287,7 +295,6 @@ string GPUDimentions::describe(){
 Node::Node(){
 	outCount = 0;
 	getCount = 0;
-	groupSize = 64;
 }
 
 string Node::describe(){
@@ -459,6 +466,17 @@ void BasicFunction::getDimentions(){
 
 	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
 	getCount = (getCount + 1) % outCount;
+}
+
+void BasicFunction::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		outDims.push_back(inputs[0]->resultDims);
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
 }
 
 
