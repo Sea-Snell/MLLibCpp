@@ -94,7 +94,7 @@ void kernel matMul2x2(global const int* ADim, global const float* A, global cons
 
 void kernel matMul2x1(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	int globalId = get_global_id(0);
-	if (globalId < ADim[0]){
+	if (globalId < ADim[2]){
 		int localId = get_local_id(0);
 		int localSize = get_local_size(0);
 		int bSize = BDim[2];
@@ -251,7 +251,7 @@ void kernel cosDerivative(global const int* ADim, global const float* A, global 
 }
 
 void kernel tanDerivative(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = pow(1.0 / cos(A[get_global_id(0) % ADim[0]]), (float)2.0) * seed[get_global_id(0) % seedDim[0]];
+	out[get_global_id(0)] = pow((float)(1.0 / cos(A[get_global_id(0) % ADim[0]])), (float)(2.0)) * seed[get_global_id(0) % seedDim[0]];
 }
 
 void kernel asinDerivative(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
@@ -287,11 +287,40 @@ void kernel matMul2x1Derivative0(global const int* BDim, global const float* B, 
 }
 
 void kernel matMul2x1Derivative1(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
-	float total = 0.0;
-	for (int i = 0; i < ADim[2]; i++){
-		total += A[i * ADim[3] + get_global_id(0)] * seed[i % seedDim[0]];
+	int globalId = get_global_id(0);
+	int ASize2 = ADim[3];
+	if (globalId < ASize2){
+		int localId = get_local_id(0);
+		int localSize = get_local_size(0);
+		int seedSize = seedDim[2];
+
+		local float seedLocal [GROUP_SIZE];
+
+		int split = seedSize / localSize;
+
+		float total = 0.0;
+		for (int i = 0; i < split; i++){
+			seedLocal[localId] = seed[localSize * i + localId];
+		
+			barrier(CLK_LOCAL_MEM_FENCE);
+
+			for (int x = 0; x < localSize; x++){
+				total += A[(i * localSize + x) * ASize2 + globalId] * seedLocal[x];
+			}
+		}
+
+		if (localSize * split + localId < seedSize){
+			seedLocal[localId] = seed[localSize * split + localId];
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		for (int x = 0; x < (seedSize % localSize); x++){
+			total += A[(split * localSize + x) * ASize2 + globalId] * seedLocal[x];
+		}
+
+		out[globalId] = total;
 	}
-	out[get_global_id(0)] = total;
 }
 
 
