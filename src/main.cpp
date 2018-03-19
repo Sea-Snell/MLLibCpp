@@ -23,9 +23,9 @@ int main(){
 }
 
 void linearReg(){
-	Constant&& xData = Constant(gaussianRandomNums(vector<int>{100, 101}, -10.0, 10.0));
+	Constant&& xData = Constant(gaussianRandomNums(vector<int>{640, 640}, -10.0, 10.0));
 	for(int i = 0; i < xData.value.dimentions[0]; i++){
-		xData.value.values[i * xData.value.dimentions[1] + 100] = 1.0;
+		xData.value.values[i * xData.value.dimentions[1] + 639] = 1.0;
 	}
 
 	Node* yValExpression = new Sum(new Multiply(&xData, new Constant(NumObject(0.5))), 1);
@@ -33,7 +33,7 @@ void linearReg(){
 	Constant&& yData = Constant(getValue(yValExpression));
 	clearHistory(&xData);
 
-	Variable&& weights = Variable(gaussianRandomNums(vector<int>{101}, -0.5, 0.5));
+	Variable&& weights = Variable(gaussianRandomNums(vector<int>{640}, -0.5, 0.5));
 
 	Node* hypothesis = new MatMul(&xData, &weights);
 	Node* cost = new MeanSquared(hypothesis, &yData);
