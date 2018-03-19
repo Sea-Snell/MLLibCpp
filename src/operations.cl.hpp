@@ -5,7 +5,7 @@ void kernel zeroBuffer(global float* A){
 	A[get_global_id(0)] = 0.0;
 }
 
-void kernel reduceSum(global const int* ADim, global const float* A, global const int* BDim, global float* B){
+void kernel reduceSum(constant const int* ADim, global const float* A, constant const int* BDim, global float* B){
 	float total = 0.0;
 	for (int i = 0; i < (ADim[0] / BDim[0]); i++){
 		total += A[get_global_id(0) + i * get_global_size(0)];
@@ -13,11 +13,11 @@ void kernel reduceSum(global const int* ADim, global const float* A, global cons
 	B[get_global_id(0)] += total;
 }
 
-void kernel explodeUp(global const int* ADim, global const float* A, global const int* BDim, global float* B){
+void kernel explodeUp(constant const int* ADim, global const float* A, constant const int* BDim, global float* B){
 	B[get_global_id(0)] += A[get_global_id(0) % ADim[0]];
 }
 
-void kernel gradientDescentStep(global const int* seedDim, global const float* seed, global float* var, const float learningRate){
+void kernel gradientDescentStep(constant const int* seedDim, global const float* seed, global float* var, const float learningRate){
 	var[get_global_id(0)] -= seed[get_global_id(0) % seedDim[0]] * learningRate;
 }
 
@@ -28,23 +28,23 @@ void kernel gradientDescentStep(global const int* seedDim, global const float* s
 
 
 
-void kernel add(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global float* C){
+void kernel add(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	C[get_global_id(0)] = A[get_global_id(0) % ADim[0]] + B[get_global_id(0) % BDim[0]];
 }
 
-void kernel subtract(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global float* C){
+void kernel subtract(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	C[get_global_id(0)] = A[get_global_id(0) % ADim[0]] - B[get_global_id(0) % BDim[0]];
 }
 
-void kernel multiply(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global float* C){
+void kernel multiply(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	C[get_global_id(0)] = A[get_global_id(0) % ADim[0]] * B[get_global_id(0) % BDim[0]];
 }
 
-void kernel divide(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global float* C){
+void kernel divide(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	C[get_global_id(0)] = A[get_global_id(0) % ADim[0]] / B[get_global_id(0) % BDim[0]];
 }
 
-void kernel pow_(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global float* C){
+void kernel pow_(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	C[get_global_id(0)] = pow(A[get_global_id(0) % ADim[0]], B[get_global_id(0) % BDim[0]]);
 }
 
@@ -84,7 +84,7 @@ void kernel atan_(global const float* A, global float* B){
 	B[get_global_id(0)] = atan(A[get_global_id(0)]);
 }
 
-void kernel matMul2x2(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global float* C){
+void kernel matMul2x2(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	float total = 0.0;
 	for (int i = 0; i < ADim[3]; i++){
 		total += A[(get_global_id(0) / BDim[3]) * ADim[3] + i] * B[i * BDim[3] + (get_global_id(0) % BDim[3])];
@@ -93,42 +93,42 @@ void kernel matMul2x2(global const int* ADim, global const float* A, global cons
 }
 
 void kernel matMul2x1(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
+	local float BLocal [GROUP_SIZE];
+
 	int globalId = get_global_id(0);
-	if (globalId < ADim[2]){
-		int localId = get_local_id(0);
-		int localSize = get_local_size(0);
-		int bSize = BDim[2];
+	int localId = get_local_id(0);
+	int localSize = get_local_size(0);
+	int bSize = BDim[2];
+	int split = bSize / localSize;
+	float total = 0.0;
 
-		local float BLocal [GROUP_SIZE];
-
-		int split = bSize / localSize;
-
-		float total = 0.0;
-		for (int i = 0; i < split; i++){
-			BLocal[localId] = B[localSize * i + localId];
+	for (int i = 0; i < split; i++){
+		BLocal[localId] = B[localSize * i + localId];
 		
-			barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE);
 
+		if (globalId < ADim[2]){
 			for (int x = 0; x < localSize; x++){
 				total += A[globalId * bSize + i * localSize + x] * BLocal[x];
 			}
 		}
+	}
 
-		if (localSize * split + localId < bSize){
-			BLocal[localId] = B[localSize * split + localId];
-		}
+	if (localSize * split + localId < bSize){
+		BLocal[localId] = B[localSize * split + localId];
+	}
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+	barrier(CLK_LOCAL_MEM_FENCE);
 
+	if (globalId < ADim[2]){
 		for (int x = 0; x < (bSize % localSize); x++){
 			total += A[globalId * bSize + split * localSize + x] * BLocal[x];
 		}
-
 		C[globalId] = total;
 	}
 }
 
-void kernel matMul1x2(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global float* C){
+void kernel matMul1x2(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	float total = 0.0;
 	for (int i = 0; i < ADim[2]; i++){
 		total += A[i] * B[i * BDim[3] + get_global_id(0)];
@@ -136,7 +136,7 @@ void kernel matMul1x2(global const int* ADim, global const float* A, global cons
 	C[get_global_id(0)] = total;
 }
 
-void kernel matMul1x1(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global float* C){
+void kernel matMul1x1(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
 	float total = 0.0;
 	for (int i = 0; i < ADim[2]; i++){
 		total += A[i] * B[i];
@@ -160,7 +160,7 @@ void kernel mean_(global const float* A, global float* B, const int dimentionSiz
 	B[get_global_id(0)] = total / ((float)dimentionSize);
 }
 
-void kernel trans(global const int* ADim, global const float* A, global float* B){
+void kernel trans(constant const int* ADim, global const float* A, global float* B){
 	B[get_global_id(0)] = A[(get_global_id(0) % ADim[2]) * ADim[3] + (get_global_id(0) / ADim[2])];
 }
 
@@ -210,63 +210,63 @@ void kernel meanSquared(global const float* hypothesis, global const float* y, g
 
 
 
-void kernel addDerivative(global const int* seedDim, global const float* seed, global float* out){
+void kernel addDerivative(constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel subtractDerivative1(global const int* seedDim, global const float* seed, global float* out){
+void kernel subtractDerivative1(constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = -1.0 * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel multiplyDerivative(global const int* ABDim, global const float* AB, global const int* seedDim, global const float* seed, global float* out){
+void kernel multiplyDerivative(constant const int* ABDim, global const float* AB, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = AB[get_global_id(0) % ABDim[0]] * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel divideDerivative0(global const int* BDim, global const float* B, global const int* seedDim, global const float* seed, global float* out){
+void kernel divideDerivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = (1.0 / B[get_global_id(0) % BDim[0]]) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel divideDerivative1(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global const int* seedDim, global const float* seed, global float* out){
+void kernel divideDerivative1(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = (-A[get_global_id(0) % ADim[0]] / pow(B[get_global_id(0) % BDim[0]], (float)2.0)) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel powDerivative0(global const int* ADim, global const float* A, global const int* BDim, global const float* B, global const int* seedDim, global const float* seed, global float* out){
+void kernel powDerivative0(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = B[get_global_id(0) % BDim[0]] * pow(A[get_global_id(0) % ADim[0]], (float)(B[get_global_id(0) % BDim[0]] - 1.0)) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel powDerivative1(global const int* ADim, global const float* A, global const int* CDim, global const float* C, global const int* seedDim, global const float* seed, global float* out){
+void kernel powDerivative1(constant const int* ADim, global const float* A, constant const int* CDim, global const float* C, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = log(A[get_global_id(0) % ADim[0]]) * C[get_global_id(0) % CDim[0]] * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel logDerivative(global const int* ADim, global const float* A, const float baseLN, global const int* seedDim, global const float* seed, global float* out){
+void kernel logDerivative(constant const int* ADim, global const float* A, const float baseLN, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = (1.0 / (baseLN * A[get_global_id(0) % ADim[0]])) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel sinDerivative(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
+void kernel sinDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = cos(A[get_global_id(0) % ADim[0]]) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel cosDerivative(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
+void kernel cosDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = -sin(A[get_global_id(0) % ADim[0]]) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel tanDerivative(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
+void kernel tanDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = pow((float)(1.0 / cos(A[get_global_id(0) % ADim[0]])), (float)(2.0)) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel asinDerivative(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
+void kernel asinDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = (1.0 / sqrt((float)1.0 - pow(A[get_global_id(0) % ADim[0]], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel acosDerivative(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
+void kernel acosDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = (-1.0 / sqrt((float)1.0 - pow(A[get_global_id(0) % ADim[0]], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel atanDerivative(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
+void kernel atanDerivative(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = (1.0 / (1.0 + pow(A[get_global_id(0) % ADim[0]], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel matMul2x2Derivative0(global const int* BDim, global const float* B, global const int* seedDim, global const float* seed, global float* out){
+void kernel matMul2x2Derivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
 	float total = 0.0;
 	for (int i = 0; i < BDim[3]; i++){
 		total += seed[((get_global_id(0) / BDim[2]) * BDim[3] + i) % seedDim[0]] * B[(get_global_id(0) % BDim[2]) * BDim[3] + i];
@@ -274,7 +274,7 @@ void kernel matMul2x2Derivative0(global const int* BDim, global const float* B, 
 	out[get_global_id(0)] = total;
 }
 
-void kernel matMul2x2Derivative1(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global const int* outDim, global float* out){
+void kernel matMul2x2Derivative1(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, constant const int* outDim, global float* out){
 	float total = 0.0;
 	for (int i = 0; i < ADim[2]; i++){
 		total += A[i * ADim[3] + (get_global_id(0) / outDim[3])] * seed[(i * outDim[3] + (get_global_id(0) % outDim[3])) % seedDim[0]];
@@ -282,49 +282,48 @@ void kernel matMul2x2Derivative1(global const int* ADim, global const float* A, 
 	out[get_global_id(0)] = total;
 }
 
-void kernel matMul2x1Derivative0(global const int* BDim, global const float* B, global const int* seedDim, global const float* seed, global float* out){
+void kernel matMul2x1Derivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = seed[(get_global_id(0) / BDim[2]) % seedDim[0]] * B[get_global_id(0) % BDim[2]];
 }
 
-void kernel matMul2x1Derivative1(global const int* ADim, global const float* A, global const int* seedDim, global const float* seed, global float* out){
+void kernel matMul2x1Derivative1(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
 	int globalId = get_global_id(0);
 	int ASize2 = ADim[3];
-	if (globalId < ASize2){
-		int localId = get_local_id(0);
-		int localSize = get_local_size(0);
-		int seedSize = seedDim[2];
+	int localId = get_local_id(0);
+	int localSize = get_local_size(0);
+	int seedSize = seedDim[2];
+	int split = seedSize / localSize;
+	float total = 0.0;
 
-		local float seedLocal [GROUP_SIZE];
+	local float seedLocal [GROUP_SIZE];
 
-		int split = seedSize / localSize;
-
-		float total = 0.0;
-		for (int i = 0; i < split; i++){
-			seedLocal[localId] = seed[localSize * i + localId];
+	for (int i = 0; i < split; i++){
+		seedLocal[localId] = seed[localSize * i + localId];
 		
-			barrier(CLK_LOCAL_MEM_FENCE);
-
+		barrier(CLK_LOCAL_MEM_FENCE);
+		if (globalId < ASize2){
 			for (int x = 0; x < localSize; x++){
 				total += A[(i * localSize + x) * ASize2 + globalId] * seedLocal[x];
 			}
 		}
+	}
 
-		if (localSize * split + localId < seedSize){
-			seedLocal[localId] = seed[localSize * split + localId];
-		}
+	if (localSize * split + localId < seedSize){
+		seedLocal[localId] = seed[localSize * split + localId];
+	}
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+	barrier(CLK_LOCAL_MEM_FENCE);
 
+	if (globalId < ASize2){
 		for (int x = 0; x < (seedSize % localSize); x++){
 			total += A[(split * localSize + x) * ASize2 + globalId] * seedLocal[x];
 		}
-
 		out[globalId] = total;
 	}
 }
 
 
-void kernel matMul1x2Derivative0(global const int* BDim, global const float* B, global const int* seedDim, global const float* seed, global float* out){
+void kernel matMul1x2Derivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
 	float total = 0.0;
 	for (int i = 0; i < BDim[3]; i++){
 		total += seed[i % seedDim[0]] * B[get_global_id(0) * BDim[3] + i];
@@ -332,7 +331,7 @@ void kernel matMul1x2Derivative0(global const int* BDim, global const float* B, 
 	out[get_global_id(0)] = total;
 }
 
-void kernel matMul1x2Derivative1(global const float* A, global const int* seedDim, global const float* seed, global const int* outDim, global float* out){
+void kernel matMul1x2Derivative1(global const float* A, constant const int* seedDim, global const float* seed, constant const int* outDim, global float* out){
 	out[get_global_id(0)] = A[get_global_id(0) / outDim[3]] * seed[(get_global_id(0) % outDim[3]) % seedDim[0]];
 }
 
@@ -345,11 +344,11 @@ void kernel matMul1x1Derivative1(global const float* A, global const float* seed
 	out[get_global_id(0)] = A[get_global_id(0)] * seed[0];
 }
 
-void kernel sumDerivative(global const int* seedDim, global const float* seed, global float* out, const int dimentionSize, const int preSum){
+void kernel sumDerivative(constant const int* seedDim, global const float* seed, global float* out, const int dimentionSize, const int preSum){
 	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]];
 }
 
-void kernel meanDerivative(global const int* seedDim, global const float* seed, global float* out, const int dimentionSize, const int preSum){
+void kernel meanDerivative(constant const int* seedDim, global const float* seed, global float* out, const int dimentionSize, const int preSum){
 	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]] / ((float)dimentionSize);
 }
 
@@ -357,27 +356,27 @@ void kernel meanDerivativeSmallSeed(global const float* seed, global float* out,
 	out[get_global_id(0)] = seed[get_global_id(0)] / ((float)dimentionSize);
 }
 
-void kernel transDerivative1(global const float* seed, global const int* outDim, global float* out){
+void kernel transDerivative1(global const float* seed, constant const int* outDim, global float* out){
 	out[get_global_id(0)] = seed[get_global_id(0) / outDim[3]];
 }
 
-void kernel transDerivative2(global const int* seedDim, global const float* seed, global float* out){
+void kernel transDerivative2(constant const int* seedDim, global const float* seed, global float* out){
 	out[get_global_id(0)] = seed[(get_global_id(0) % seedDim[2]) * seedDim[3] + (get_global_id(0) / seedDim[2])];
 }
 
-void kernel maxDerivative(global const int* seedDim, global const float* seed, global float* out, global const int* Idx, const int dimentionSize, const int preSum){
+void kernel maxDerivative(constant const int* seedDim, global const float* seed, global float* out, global const int* Idx, const int dimentionSize, const int preSum){
 	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]] * Idx[get_global_id(0)];
 }
 
-void kernel maxDerivativeSmallSeed(global const int* seedDim, global const float* seed, global float* out, global const int* Idx){
+void kernel maxDerivativeSmallSeed(constant const int* seedDim, global const float* seed, global float* out, global const int* Idx){
 	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * Idx[get_global_id(0)];
 }
 
-void kernel meanSquaredDerivative(global const int* seedDim, global const float* seed, global const float* differenceMemo, global float* out, const int dimentionSize, const int preSum){
+void kernel meanSquaredDerivative(constant const int* seedDim, global const float* seed, global const float* differenceMemo, global float* out, const int dimentionSize, const int preSum){
 	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]] * differenceMemo[get_global_id(0)] * (2.0 / ((float)dimentionSize));
 }
 
-void kernel meanSquaredDerivativeSmallSeed(global const int* seedDim, global const float* seed, global const float* differenceMemo, global float* out, const int dimentionSize){
+void kernel meanSquaredDerivativeSmallSeed(constant const int* seedDim, global const float* seed, global const float* differenceMemo, global float* out, const int dimentionSize){
 	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * differenceMemo[get_global_id(0)] * (2.0 / ((float)dimentionSize));
 }
 

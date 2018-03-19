@@ -23,9 +23,9 @@ int main(){
 }
 
 void linearReg(){
-	Constant&& xData = Constant(gaussianRandomNums(vector<int>{100, 100}, -10.0, 10.0));
+	Constant&& xData = Constant(gaussianRandomNums(vector<int>{100, 101}, -10.0, 10.0));
 	for(int i = 0; i < xData.value.dimentions[0]; i++){
-		xData.value.values[i * xData.value.dimentions[1] + 99] = 1.0;
+		xData.value.values[i * xData.value.dimentions[1] + 100] = 1.0;
 	}
 
 	Node* yValExpression = new Sum(new Multiply(&xData, new Constant(NumObject(0.5))), 1);
@@ -33,7 +33,7 @@ void linearReg(){
 	Constant&& yData = Constant(getValue(yValExpression));
 	clearHistory(&xData);
 
-	Variable&& weights = Variable(gaussianRandomNums(vector<int>{100}, -0.5, 0.5));
+	Variable&& weights = Variable(gaussianRandomNums(vector<int>{101}, -0.5, 0.5));
 
 	Node* hypothesis = new MatMul(&xData, &weights);
 	Node* cost = new MeanSquared(hypothesis, &yData);
@@ -44,9 +44,9 @@ void linearReg(){
 
 	cout << "starting..." << endl;
 	int start = clock();
-	for(int i = 0; i < 1000; i++){
+	for(int i = 0; i < 50000; i++){
 		derive(cost);
-		gradientDescent(variables, 0.00000001);
+		gradientDescent(variables, 0.0000001);
 
 		if(i % 10 == 0){
 			cout << i << ", " << showValue(cost).describe() << endl;
