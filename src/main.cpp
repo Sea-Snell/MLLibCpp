@@ -37,7 +37,7 @@ void MNISTFFNN(){
 
 	Node* cost = new Sum(new CrossEntropy(layer1, &yData));
 
-	vector<NumObject> trainData = getTrain(100);
+	vector<NumObject> trainData = getTrain(1000);
 	xData.value = trainData[0];
 	yData.value = trainData[1];
 
