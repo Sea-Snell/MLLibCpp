@@ -20,7 +20,7 @@ void linearReg();
 
 int main(){
 
-	linearReg();
+	MNISTFFNN();
 
 	return 0;
 }
@@ -449,46 +449,45 @@ void WordRNN(bool randomize){
 void MNISTFFNN(){
 	Constant&& xData = Constant(NumObject(), "x");
 	Constant&& yData = Constant(NumObject(), "y");
-	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 40}, 0.0, 1.0 / sqrt(784.0)), "w1");
-	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
-	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{40}, 0.0, 1.0), "bias1");
-	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
+	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 10}, 0.0, 1.0 / sqrt(784.0)), "w1");
+	// Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
+	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias1");
+	// Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
 
-	Node* layer1 = new ReLU(new Add(new MatMul(&xData, &weights1), &bias1));
-	Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
+	Node* layer1 = new Sigmoid(new Add(new MatMul(&xData, &weights1), &bias1));
+	// Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
 
-	Node* cost = new CrossEntropySoftmax(layer2, &yData);
+	Node* cost = new CrossEntropy(layer1, &yData);
 
 	GradientDescent trainer = GradientDescent(0.1);
 
-	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2};
+	vector<Variable*> variables = {&weights1, &bias1};
 
-	for(int i = 0; i < 201; i++){
+	vector<NumObject> trainData = getTrain(100);
+	xData.value = trainData[0];
+	yData.value = trainData[1];
 
-		vector<NumObject> trainData = getTrain(100);
-		xData.value = trainData[0];
-		yData.value = trainData[1];
-
+	for(int i = 0; i < 501; i++){
 		NumObject costVal = derive(cost);
 		trainer.minimize(variables);
 
 		if(i % 10 == 0){
-			cout << costVal.describe() << endl;
+			cout << i << ", " << costVal.describe() << endl;
 		}
 	}
 
-	vector<NumObject> testData = getTest(1000);
-	xData.value = testData[0];
-	yData.value = testData[1];
+	// vector<NumObject> testData = getTest(1000);
+	// xData.value = testData[0];
+	// yData.value = testData[1];
 
-	NumObject prediction = layer2->getValue();
+	// NumObject prediction = layer2->getValue();
 
-	Max a = Max(new Constant(prediction), 1);
-	Max b = Max(&yData, 1);
-	a.getValue();
-	b.getValue();
+	// Max a = Max(new Constant(prediction), 1);
+	// Max b = Max(&yData, 1);
+	// a.getValue();
+	// b.getValue();
 
-	cout << Mean(new Constant(equal(a.idx[0], b.idx[0]))).getValue().describe() << endl;
+	// cout << Mean(new Constant(equal(a.idx[0], b.idx[0]))).getValue().describe() << endl;
 }
 
 vector<NumObject> getTrain(int n){
