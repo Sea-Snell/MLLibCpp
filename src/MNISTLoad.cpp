@@ -78,7 +78,7 @@ NumObject openTestImages(){
 	testImages.read(data, 10000 * 28 * 28);
 	testImages.close();
 
-	vector<double> a;
+	vector<float> a;
 	a.reserve(10000 * 28 * 28);
 	for(int i = 0; i < 10000 * 28 * 28; i++){
 		a.push_back((unsigned char) data[i]);
@@ -95,7 +95,7 @@ NumObject openTestLabels(){
 	testLabels.read(data, 10000);
 	testLabels.close();
 
-	vector<double> a;
+	vector<float> a;
 	a.reserve(10000);
 	for(int i = 0; i < 10000; i++){
 		a.push_back((unsigned char) data[i]);
@@ -112,7 +112,7 @@ NumObject openTrainImages(){
 	trainImages.read(data, 60000 * 28 * 28);
 	trainImages.close();
 
-	vector<double> a;
+	vector<float> a;
 	a.reserve(60000 * 28 * 28);
 	for(int i = 0; i < 60000 * 28 * 28; i++){
 		a.push_back((unsigned char) data[i]);
@@ -129,7 +129,7 @@ NumObject openTrainLabels(){
 	trainLabels.read(data, 60000);
 	trainLabels.close();
 
-	vector<double> a;
+	vector<float> a;
 	a.reserve(60000);
 	for(int i = 0; i < 60000; i++){
 		a.push_back((unsigned char) data[i]);

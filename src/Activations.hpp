@@ -7,7 +7,6 @@ public:
 	Sigmoid(Node* a): BasicFunction(a){name = "Sigmoid";}
 
 	void getValue();
-	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 };
 

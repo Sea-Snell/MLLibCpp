@@ -4,23 +4,113 @@
 #include "MatrixMath.hpp"
 #include "Optimizers.hpp"
 #include "CostFunctions.hpp"
+#include "Activations.hpp"
+#include "MNISTLoad.hpp"
 #include <time.h>
 
 // void rubixNet();
 // void WordRNN(bool randomize);
-// void MNISTFFNN();
-// vector<NumObject> getTrain(int n);
-// vector<NumObject> getTest(int n);
+void MNISTFFNN();
+vector<NumObject> getTrain(int n);
+vector<NumObject> getTest(int n);
 void linearReg();
 
 int main(){
 
 	initialize();
 
-	linearReg();
+	MNISTFFNN();
 
 	return 0;
 }
+
+void MNISTFFNN(){
+	Constant&& xData = Constant(NumObject(), "x");
+	Constant&& yData = Constant(NumObject(), "y");
+	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 10}, 0.0, 1.0 / sqrt(784.0)), "w1");
+	// Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
+	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias1");
+	// Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
+
+	Node* layer1 = new Sigmoid(new Add(new MatMul(&xData, &weights1), &bias1));
+	// Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
+
+	Node* cost = new Sum(new CrossEntropy(layer1, &yData));
+
+	vector<NumObject> trainData = getTrain(100);
+	xData.value = trainData[0];
+	yData.value = trainData[1];
+
+	initalize(cost);
+
+	vector<Variable*> variables = {&weights1, &bias1};
+
+	cout << "starting..." << endl;
+	for(int i = 0; i < 501; i++){
+		derive(cost);
+		gradientDescent(variables, 0.1);
+
+		if(i % 10 == 0){
+			cout << i << ", " << showValue(cost).describe() << endl;
+		}
+	}
+
+	// vector<NumObject> testData = getTest(1000);
+	// xData.value = testData[0];
+	// yData.value = testData[1];
+
+	// initalize(cost);
+
+	// NumObject prediction = getValue(layer1);
+
+	// Max a = Max(new Constant(prediction), 1);
+	// Max b = Max(new Constant(yData.value), 1);
+	// initalize(&a);
+	// initalize(&b);
+	// getValue(&a);
+	// getValue(&b);
+
+	// NumObject readValA = NumObject(a.resultDims.dimentions, 0.0);
+	// queue.enqueueReadBuffer(a.idx, CL_TRUE, 0, sizeof(float) * a.resultDims.size, &readValA.values[0]);
+
+	// NumObject readValB = NumObject(b.resultDims.dimentions, 0.0);
+	// queue.enqueueReadBuffer(b.idx, CL_TRUE, 0, sizeof(float) * b.resultDims.size, &readValB.values[0]);
+
+	// cout << getValue(new Mean(new Constant(equal(readValA, readValB)))).describe() << endl;
+}
+
+vector<NumObject> getTrain(int n){
+	vector<NumObject> temp = randomTrainSet(n);
+
+	for(int i = 0; i < temp[0].values.size(); i++){
+		temp[0].values[i] = (temp[0].values[i] - 128.0) / 256.0;
+	}
+
+	NumObject yFinal = oneHot(temp[1], 0, 9);
+
+	vector<NumObject> ans = {temp[0], yFinal};
+
+	return ans;
+}
+
+vector<NumObject> getTest(int n){
+	vector<NumObject> temp = randomTestSet(n);
+	
+	for(int i = 0; i < temp[0].values.size(); i++){
+		temp[0].values[i] = (temp[0].values[i] - 128.0) / 256.0;
+	}
+
+	NumObject yFinal = oneHot(temp[1], 0, 9);
+
+	vector<NumObject> ans = {temp[0], yFinal};
+
+	return ans;
+}
+
+
+
+
+
 
 void linearReg(){
 	Constant&& xData = Constant(gaussianRandomNums(vector<int>{640, 640}, -10.0, 10.0));
@@ -36,8 +126,8 @@ void linearReg(){
 	Variable&& weights = Variable(gaussianRandomNums(vector<int>{640}, -0.5, 0.5));
 
 	Node* hypothesis = new MatMul(&xData, &weights);
-	// Node* cost = new MeanSquared(hypothesis, &yData);
-	Node* cost = new Mean(new Pow(new Subtract(hypothesis, &yData), new Constant(2.0)));
+	Node* cost = new MeanSquared(hypothesis, &yData);
+	// Node* cost = new Mean(new Pow(new Subtract(hypothesis, &yData), new Constant(2.0)));
 
 	initalize(cost);
 
@@ -480,79 +570,6 @@ void linearReg(){
 
 // 		cout << "end writing." << endl;
 // 	}
-// }
-
-// void MNISTFFNN(){
-// 	Constant&& xData = Constant(NumObject(), "x");
-// 	Constant&& yData = Constant(NumObject(), "y");
-// 	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 40}, 0.0, 1.0 / sqrt(784.0)), "w1");
-// 	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
-// 	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{40}, 0.0, 1.0), "bias1");
-// 	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
-
-// 	Node* layer1 = new ReLU(new Add(new MatMul(&xData, &weights1), &bias1));
-// 	Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
-
-// 	Node* cost = new CrossEntropySoftmax(layer2, &yData);
-
-// 	GradientDescent trainer = GradientDescent(0.1);
-
-// 	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2};
-
-// 	for(int i = 0; i < 201; i++){
-
-// 		vector<NumObject> trainData = getTrain(100);
-// 		xData.value = trainData[0];
-// 		yData.value = trainData[1];
-
-// 		NumObject costVal = derive(cost);
-// 		trainer.minimize(variables);
-
-// 		if(i % 10 == 0){
-// 			cout << costVal.describe() << endl;
-// 		}
-// 	}
-
-// 	vector<NumObject> testData = getTest(1000);
-// 	xData.value = testData[0];
-// 	yData.value = testData[1];
-
-// 	NumObject prediction = layer2->getValue();
-
-// 	Max a = Max(new Constant(prediction), 1);
-// 	Max b = Max(&yData, 1);
-// 	a.getValue();
-// 	b.getValue();
-
-// 	cout << Mean(new Constant(equal(a.idx[0], b.idx[0]))).getValue().describe() << endl;
-// }
-
-// vector<NumObject> getTrain(int n){
-// 	vector<NumObject> temp = randomTrainSet(n);
-
-// 	for(int i = 0; i < temp[0].values.size(); i++){
-// 		temp[0].values[i] = (temp[0].values[i] - 128.0) / 256.0;
-// 	}
-
-// 	NumObject yFinal = oneHot(temp[1], 0, 9);
-
-// 	vector<NumObject> ans = {temp[0], yFinal};
-
-// 	return ans;
-// }
-
-// vector<NumObject> getTest(int n){
-// 	vector<NumObject> temp = randomTestSet(n);
-	
-// 	for(int i = 0; i < temp[0].values.size(); i++){
-// 		temp[0].values[i] = (temp[0].values[i] - 128.0) / 256.0;
-// 	}
-
-// 	NumObject yFinal = oneHot(temp[1], 0, 9);
-
-// 	vector<NumObject> ans = {temp[0], yFinal};
-
-// 	return ans;
 // }
 
 

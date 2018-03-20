@@ -190,15 +190,15 @@ NumObject uniformRandomNums(vector<int> dimentions, double low, double high){
 	return ans;
 }
 
-// NumObject equal(NumObject& a, NumObject& b){
-// 	NumObject ans = NumObject(a.dimentions, 0);
-// 	for(int i = 0; i < a.values.size(); i++){
-// 		if (a.values[i] == b.values[i]){
-// 			ans.values[i] = 1;
-// 		}
-// 	}
-// 	return ans;
-// }
+NumObject equal(NumObject& a, NumObject& b){
+	NumObject ans = NumObject(a.dimentions, 0.0);
+	for(int i = 0; i < a.values.size(); i++){
+		if (a.values[i] == b.values[i]){
+			ans.values[i] = 1.0;
+		}
+	}
+	return ans;
+}
 
 // float compareDerivatives(Node* expression, Variable* variable, float delta){
 // 	derive(expression);
@@ -255,20 +255,20 @@ NumObject uniformRandomNums(vector<int> dimentions, double low, double high){
 // 	return ans;
 // }
 
-// NumObject oneHot(NumObject items, int low, int high){
-// 	NumObject ans = NumObject(vector<int>{items.dimentions[0], (high - low) + 1});
-// 	for(int i = 0; i < items.values.size(); i++){
-// 		for(int x = 0; x < (high - low) + 1; x++){
-// 			if(items.values[i] == x + low){
-// 				ans.values.push_back(1.0);
-// 			}
-// 			else{
-// 				ans.values.push_back(0.0);
-// 			}
-// 		}
-// 	}
-// 	return ans;
-// }
+NumObject oneHot(NumObject items, int low, int high){
+	NumObject ans = NumObject(vector<int>{items.dimentions[0], (high - low) + 1});
+	for(int i = 0; i < items.values.size(); i++){
+		for(int x = 0; x < (high - low) + 1; x++){
+			if(items.values[i] == x + low){
+				ans.values.push_back(1.0);
+			}
+			else{
+				ans.values.push_back(0.0);
+			}
+		}
+	}
+	return ans;
+}
 
 // void saveData(NumObject data, string name){
 // 	ofstream newFile;

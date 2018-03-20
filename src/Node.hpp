@@ -83,6 +83,7 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivativeSmallSeed;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> crossEntropyDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropyDerivativeSmallSeed;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sigmoidDerivative;
 
 
 void initialize();
@@ -161,6 +162,7 @@ public:
 	void deriveDimentions(GPUDimentions* tempSeed);
 	void derive();
 	void updateHostVals();
+	void updateDeviceVals();
 	string describe();
 };
 

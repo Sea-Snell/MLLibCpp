@@ -1,6 +1,4 @@
 #include "Activations.hpp"
-#include "MapVals.hpp"
-#include "HelperFunctions.hpp"
 
 
 void Sigmoid::getValue(){
@@ -13,17 +11,6 @@ void Sigmoid::getValue(){
 	getCount = (getCount + 1) % outCount;
 }
 
-void Sigmoid::deriveDimentions(GPUDimentions* tempSeed){
-	getCount = (getCount + 1) % outCount;
-	seedDimAdd(tempSeed);
-
-	if (getCount == 0){
-		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &resultDims}));
-		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
-		inputs[0]->deriveDimentions(&outDims[0]);
-	}
-}
-
 void Sigmoid::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
@@ -31,30 +18,12 @@ void Sigmoid::derive(){
 			if (inputs[0]->getCount == 0){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			sigmoidDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			sigmoidDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), result, seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
 	}
 }
-
-// double Sigmoid::operation(vector<double>& a){
-// 	return 1.0 / (1.0 + exp(-a[0]));
-// }
-
-// void Sigmoid::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &Sigmoid::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
-
-// double Sigmoid::deriveOperation1(vector<double>& a){
-// 	return a[0] * a[1] * (1.0 - a[1]);
-// }
 
 // double ReLU::operation(vector<double>& a){
 // 	if (a[0] >= 0){

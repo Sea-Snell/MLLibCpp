@@ -397,13 +397,20 @@ void kernel meanSquaredDerivativeSmallSeed(constant const int* seedDim, global c
 
 void kernel crossEntropyDerivative(constant const int* seedDim, global const float* seed, global const float* hypothesis, global const float* y, global float* out, const int dimentionSize, const int preSum){
 	float hypVal = hypothesis[get_global_id(0)];
-	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]] * (1.0 / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
+	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]] * ((float)(-1.0) / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
 }
 
 void kernel crossEntropyDerivativeSmallSeed(constant const int* seedDim, global const float* seed, global const float* hypothesis, global const float* y, global float* out, const int dimentionSize){
 	float hypVal = hypothesis[get_global_id(0)];
-	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * (1.0 / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
+	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * ((float)(-1.0) / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
 }
+
+void kernel sigmoidDerivative(global const float* C, constant const int* seedDim, global const float* seed, global float* out){
+	float CVal = C[get_global_id(0)];
+	out[get_global_id(0)] = (CVal * ((float)(1.0) - CVal)) * seed[get_global_id(0) % seedDim[0]];
+}
+
+
 
 
 

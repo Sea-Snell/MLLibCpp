@@ -131,6 +131,7 @@ void CrossEntropy::getDimentions(){
 	resultDims.setBuf();
 
 	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	crossResult = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size);
 	getCount = (getCount + 1) % outCount;
 }
 

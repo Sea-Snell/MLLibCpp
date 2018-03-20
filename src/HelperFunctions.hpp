@@ -19,13 +19,13 @@ NumObject gaussianRandomNums(vector<int> dimentions, double mean, double stdDev)
 NumObject trunGaussianRandomNums(vector<int> dimentions, double mean, double stdDev);
 NumObject uniformRandomNums(vector<int> dimentions, double low, double high);
 
-// NumObject equal(NumObject& a, NumObject& b);
+NumObject equal(NumObject& a, NumObject& b);
 
 
 // float compareDerivatives(Node* expression, Variable* variable, float delta = 0.00001);
 // vector<NumObject> compareDerivativesTime(Node* expression, vector<vector<NumObject>>& timeVals, vector<Constant*>& sub, vector<Variable*>& variables, int n = -1);
 
-// NumObject oneHot(NumObject items, int low, int high);
+NumObject oneHot(NumObject items, int low, int high);
 
 // void saveData(NumObject data, string name);
 // NumObject loadData(string name);

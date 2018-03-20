@@ -69,6 +69,7 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanSq
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivativeSmallSeed(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> crossEntropyDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropyDerivativeSmallSeed(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sigmoidDerivative(cl::Kernel(program, ""));
 
 void initialize(){
 	vector<cl::Platform> allPlatforms;
@@ -178,6 +179,7 @@ void initialize(){
 	meanSquaredDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "meanSquaredDerivativeSmallSeed"));
 	crossEntropyDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "crossEntropyDerivative"));
 	crossEntropyDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "crossEntropyDerivativeSmallSeed"));
+	sigmoidDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "sigmoidDerivative"));
 }
 
 NumObject::NumObject(){}
@@ -389,6 +391,10 @@ void Constant::deriveDimentions(GPUDimentions* tempSeed){
 
 void Constant::updateHostVals(){
 	queue.enqueueReadBuffer(result, CL_TRUE, 0, sizeof(float) * resultDims.size, &value.values[0]);
+}
+
+void Constant::updateDeviceVals(){
+	queue.enqueueWriteBuffer(result, CL_TRUE, 0, sizeof(float) * resultDims.size, &value.values[0]);
 }
 
 string Constant::describe(){
