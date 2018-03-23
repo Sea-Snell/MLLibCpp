@@ -5,9 +5,9 @@
 class MeanSquared: public Node{
 public:
 	cl::Buffer differenceMemo;
-	cl::Buffer diffSquared;
+	cl::Buffer diffSquaredResedue;
 	int dimention;
-	int preSum;
+	int GROUP_SIZE;
 
 	MeanSquared(Node* hypothesis, Node* y, int dimentionVal = 0);
 	void getDimentions();
@@ -20,9 +20,9 @@ public:
 
 class CrossEntropy: public Node{
 public:
-	cl::Buffer crossResult;
+	cl::Buffer crossResultResedue;
 	int dimention;
-	int preSum;
+	int GROUP_SIZE;
 
 	CrossEntropy(Node* hypothesis, Node* y, int dimentionVal = 0);
 	void getDimentions();

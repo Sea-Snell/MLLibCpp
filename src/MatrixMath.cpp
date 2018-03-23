@@ -55,21 +55,40 @@ void MatMul::getValue(){
 	}
 	inputs[0]->getValue();
 	inputs[1]->getValue();
+	
 	if (inputs[0]->resultDims.rank == 1 && inputs[1]->resultDims.rank == 1){
-		matMul1x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+		matMul1x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->result, result);
 	}
 	else if (inputs[0]->resultDims.rank == 1){
-		matMul1x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
-	}
-	else if (inputs[1]->resultDims.rank == 1){
+		int GROUP_SIZE = 16;
 		int globalSize = resultDims.size + (GROUP_SIZE - resultDims.size % GROUP_SIZE);
 		if (resultDims.size % GROUP_SIZE == 0){
 			globalSize -= GROUP_SIZE;
 		}
-		matMul2x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+		matMul1x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+	}
+	else if (inputs[1]->resultDims.rank == 1){
+		int GROUP_SIZE = 16;
+		int globalSize = resultDims.size + (GROUP_SIZE - resultDims.size % GROUP_SIZE);
+		if (resultDims.size % GROUP_SIZE == 0){
+			globalSize -= GROUP_SIZE;
+		}
+		matMul2x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->result, result);
 	}
 	else{
-		matMul2x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+		int GROUP_SIZE = 1024;
+		int blockSide = 32;
+		int workPerBlockSideSquared = 16;
+		int heightSize = resultDims.dimentions[0] + (blockSide - resultDims.dimentions[0] % blockSide);
+		if (resultDims.dimentions[0] % blockSide == 0){
+			heightSize -= blockSide;
+		}
+		int widthSize = resultDims.dimentions[1] + (blockSide - resultDims.dimentions[1] % blockSide);
+		if (resultDims.dimentions[1] % blockSide == 0){
+			widthSize -= blockSide;
+		}
+		int blocksWide = widthSize / blockSide;
+		matMul2x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange((widthSize * heightSize) / workPerBlockSideSquared), cl::NDRange(GROUP_SIZE / workPerBlockSideSquared)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result, blocksWide);
 	}
 	getCount = (getCount + 1) % outCount;
 }
@@ -99,13 +118,41 @@ void MatMul::derive(){
 				matMul1x1Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->result, seed, out[0]);
 			}
 			else if (inputs[0]->resultDims.rank == 1){
-				matMul1x2Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
+				int GROUP_SIZE = 16;
+				int globalSize = outDims[0].size + (GROUP_SIZE - outDims[0].size % GROUP_SIZE);
+				if (outDims[0].size % GROUP_SIZE == 0){
+					globalSize -= GROUP_SIZE;
+				}
+				matMul1x2Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
 			}
 			else if (inputs[1]->resultDims.rank == 1){
-				matMul2x1Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
+				int GROUP_SIZE = 1024;
+				int blockSide = 32;
+				int heightSize = outDims[0].dimentions[0] + (blockSide - outDims[0].dimentions[0] % blockSide);
+				if (outDims[0].dimentions[0] % blockSide == 0){
+					heightSize -= blockSide;
+				}
+				int widthSize = outDims[0].dimentions[1] + (blockSide - outDims[0].dimentions[1] % blockSide);
+				if (outDims[0].dimentions[1] % blockSide == 0){
+					widthSize -= blockSide;
+				}
+				int blocksWide = widthSize / blockSide;
+				matMul2x1Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(widthSize * heightSize), cl::NDRange(GROUP_SIZE)), inputs[1]->result, seedDims.dimBuf, seed, outDims[0].dimBuf, out[0], blocksWide);
 			}
 			else{
-				matMul2x2Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
+				int GROUP_SIZE = 1024;
+				int blockSide = 32;
+				int workPerBlockSideSquared = 16;
+				int heightSize = outDims[0].dimentions[0] + (blockSide - outDims[0].dimentions[0] % blockSide);
+				if (outDims[0].dimentions[0] % blockSide == 0){
+					heightSize -= blockSide;
+				}
+				int widthSize = outDims[0].dimentions[1] + (blockSide - outDims[0].dimentions[1] % blockSide);
+				if (outDims[0].dimentions[1] % blockSide == 0){
+					widthSize -= blockSide;
+				}
+				int blocksWide = widthSize / blockSide;
+				matMul2x2Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange((widthSize * heightSize) / workPerBlockSideSquared), cl::NDRange(GROUP_SIZE / workPerBlockSideSquared)), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, outDims[0].dimBuf, out[0], blocksWide);
 			}
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
@@ -115,12 +162,24 @@ void MatMul::derive(){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), inputs[1]->seed);
 			}
 			if (inputs[0]->resultDims.rank == 1 && inputs[1]->resultDims.rank == 1){
-				matMul1x1Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->result, seed, out[1]);
+				matMul1x1Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->result, seed, out[1]);
 			}
 			else if (inputs[0]->resultDims.rank == 1){
-				matMul1x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1]);
+				int GROUP_SIZE = 1024;
+				int blockSide = 32;
+				int heightSize = outDims[1].dimentions[0] + (blockSide - outDims[1].dimentions[0] % blockSide);
+				if (outDims[1].dimentions[0] % blockSide == 0){
+					heightSize -= blockSide;
+				}
+				int widthSize = outDims[1].dimentions[1] + (blockSide - outDims[1].dimentions[1] % blockSide);
+				if (outDims[1].dimentions[1] % blockSide == 0){
+					widthSize -= blockSide;
+				}
+				int blocksWide = widthSize / blockSide;
+				matMul1x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(widthSize * heightSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1], blocksWide);
 			}
 			else if (inputs[1]->resultDims.rank == 1){
+				int GROUP_SIZE = 16;
 				int globalSize = outDims[1].size + (GROUP_SIZE - outDims[1].size % GROUP_SIZE);
 				if (outDims[1].size % GROUP_SIZE == 0){
 					globalSize -= GROUP_SIZE;
@@ -128,7 +187,19 @@ void MatMul::derive(){
 				matMul2x1Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[1]);
 			}
 			else{
-				matMul2x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1]);
+				int GROUP_SIZE = 1024;
+				int blockSide = 32;
+				int workPerBlockSideSquared = 16;
+				int heightSize = outDims[1].dimentions[0] + (blockSide - outDims[1].dimentions[0] % blockSide);
+				if (outDims[1].dimentions[0] % blockSide == 0){
+					heightSize -= blockSide;
+				}
+				int widthSize = outDims[1].dimentions[1] + (blockSide - outDims[1].dimentions[1] % blockSide);
+				if (outDims[1].dimentions[1] % blockSide == 0){
+					widthSize -= blockSide;
+				}
+				int blocksWide = widthSize / blockSide;
+				matMul2x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange((widthSize * heightSize) / workPerBlockSideSquared), cl::NDRange(GROUP_SIZE / workPerBlockSideSquared)), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1], blocksWide);
 			}
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), outDims[1].dimBuf, out[1], inputs[1]->seedDims.dimBuf, inputs[1]->seed);
 			inputs[1]->derive();

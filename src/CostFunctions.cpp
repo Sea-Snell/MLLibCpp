@@ -2,6 +2,7 @@
 
 MeanSquared::MeanSquared(Node* hypothesis, Node* y, int dimentionVal){
 	dimention = dimentionVal;
+	GROUP_SIZE = 128;
 	inputs.push_back(hypothesis);
 	inputs.push_back(y);
 	hypothesis->outputs.push_back(this);
@@ -20,25 +21,20 @@ void MeanSquared::getDimentions(){
 	inputs[0]->getDimentions();
 	inputs[1]->getDimentions();
 
-	resultDims.rank = inputs[0]->resultDims.rank - 1;
-	resultDims.size = inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention];
+	resultDims.rank = 0;
+	resultDims.size = 1;
 	resultDims.dimentions = {};
-	for (int i = 0; i < inputs[0]->resultDims.rank; i++){
-		if (i != dimention){
-			resultDims.dimentions.push_back(inputs[0]->resultDims.dimentions[i]);
-		}
-	}
-
-	preSum = 1;
-	for (int i = dimention + 1; i < inputs[0]->resultDims.rank; i++){
-		preSum *= inputs[0]->resultDims.dimentions[i];
-	}
 
 	resultDims.setBuf();
 
+	int numGroups = inputs[0]->resultDims.size / GROUP_SIZE;
+	if (numGroups * GROUP_SIZE != inputs[0]->resultDims.size){
+		numGroups += 1;
+	}
+
 	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
 	differenceMemo = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size);
-	diffSquared = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size);
+	diffSquaredResedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * numGroups);
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -49,9 +45,12 @@ void MeanSquared::getValue(){
 	}
 	inputs[0]->getValue();
 	inputs[1]->getValue();
-	
-	meanSquared(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size), cl::NullRange), inputs[0]->result, inputs[1]->result, differenceMemo, diffSquared);
-	mean_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), diffSquared, result, inputs[0]->resultDims.dimentions[dimention], preSum);
+
+	int globalSize = inputs[0]->resultDims.size + (GROUP_SIZE - inputs[0]->resultDims.size % GROUP_SIZE);
+	if (inputs[0]->resultDims.size % GROUP_SIZE == 0){
+		globalSize -= GROUP_SIZE;
+	}
+	meanSquared(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->result, differenceMemo, diffSquaredResedue, result, inputs[0]->resultDims.dimentions[dimention]);
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -73,14 +72,8 @@ void MeanSquared::derive(){
 			if (inputs[0]->getCount == 0){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
-				meanSquaredDerivativeSmallSeed(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, differenceMemo, out[0], inputs[0]->resultDims.dimentions[dimention]);
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
-			else{
-				meanSquaredDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, differenceMemo, out[0], inputs[0]->resultDims.dimentions[dimention], preSum);
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
+			meanSquaredDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, differenceMemo, out[0], inputs[0]->resultDims.dimentions[dimention]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
 	}
@@ -96,6 +89,7 @@ string MeanSquared::describe(){
 
 CrossEntropy::CrossEntropy(Node* hypothesis, Node* y, int dimentionVal){
 	dimention = dimentionVal;
+	GROUP_SIZE = 128;
 	inputs.push_back(hypothesis);
 	inputs.push_back(y);
 	hypothesis->outputs.push_back(this);
@@ -114,24 +108,19 @@ void CrossEntropy::getDimentions(){
 	inputs[0]->getDimentions();
 	inputs[1]->getDimentions();
 
-	resultDims.rank = inputs[0]->resultDims.rank - 1;
-	resultDims.size = inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention];
+	resultDims.rank = 0;
+	resultDims.size = 1;
 	resultDims.dimentions = {};
-	for (int i = 0; i < inputs[0]->resultDims.rank; i++){
-		if (i != dimention){
-			resultDims.dimentions.push_back(inputs[0]->resultDims.dimentions[i]);
-		}
-	}
-
-	preSum = 1;
-	for (int i = dimention + 1; i < inputs[0]->resultDims.rank; i++){
-		preSum *= inputs[0]->resultDims.dimentions[i];
-	}
 
 	resultDims.setBuf();
 
+	int numGroups = inputs[0]->resultDims.size / GROUP_SIZE;
+	if (numGroups * GROUP_SIZE != inputs[0]->resultDims.size){
+		numGroups += 1;
+	}
+
 	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
-	crossResult = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size);
+	crossResultResedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * numGroups);
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -143,8 +132,11 @@ void CrossEntropy::getValue(){
 	inputs[0]->getValue();
 	inputs[1]->getValue();
 	
-	crossEntropy(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size), cl::NullRange), inputs[0]->result, inputs[1]->result, crossResult);
-	mean_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), crossResult, result, inputs[0]->resultDims.dimentions[dimention], preSum);
+	int globalSize = inputs[0]->resultDims.size + (GROUP_SIZE - inputs[0]->resultDims.size % GROUP_SIZE);
+	if (inputs[0]->resultDims.size % GROUP_SIZE == 0){
+		globalSize -= GROUP_SIZE;
+	}
+	crossEntropy(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->result, crossResultResedue, result, inputs[0]->resultDims.dimentions[dimention]);
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -166,14 +158,8 @@ void CrossEntropy::derive(){
 			if (inputs[0]->getCount == 0){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
-				crossEntropyDerivativeSmallSeed(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, inputs[0]->result, inputs[1]->result, out[0], inputs[0]->resultDims.dimentions[dimention]);
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
-			else{
-				crossEntropyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, inputs[0]->result, inputs[1]->result, out[0], inputs[0]->resultDims.dimentions[dimention], preSum);
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
+			crossEntropyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, inputs[0]->result, inputs[1]->result, out[0], inputs[0]->resultDims.dimentions[dimention]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
 	}

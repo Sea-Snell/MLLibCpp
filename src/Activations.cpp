@@ -25,71 +25,77 @@ void Sigmoid::derive(){
 	}
 }
 
-// double ReLU::operation(vector<double>& a){
-// 	if (a[0] >= 0){
-// 		return a[0];
-// 	}
-// 	return 0.0;
-// }
+void ReLU::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	reLU(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
 
-// void ReLU::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &ReLU::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
+void ReLU::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			reLUDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
-// double ReLU::deriveOperation1(vector<double>& a){
-// 	if(a[1] >= 0){
-// 		return a[0];
-// 	}
-// 	return 0.0;
-// }
+void LeakyReLU::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	leakyReLU(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
 
-// double LeakyReLU::operation(vector<double>& a){
-// 	if (a[0] >= 0){
-// 		return a[0];
-// 	}
-// 	return 0.01 * a[0];
-// }
+void LeakyReLU::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			leakyReLUDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
-// void LeakyReLU::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &LeakyReLU::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
+void Gaussian::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	gaussian(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
 
-// double LeakyReLU::deriveOperation1(vector<double>& a){
-// 	if(a[1] >= 0){
-// 		return a[0];
-// 	}
-// 	return 0.01 * a[0];
-// }
-
-// double Gaussian::operation(vector<double>& a){
-// 	return exp(-a[0] * a[0]);
-// }
-
-// void Gaussian::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, derivativeMemo[t], inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &Gaussian::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
-
-// double Gaussian::deriveOperation1(vector<double>& a){
-// 	return a[0] * -2.0 * a[2] * a[1];
-// }
+void Gaussian::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			gaussianDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
 // Softmax::Softmax(Node* a, int dimentionVal){
 // 	outCount = 0;
@@ -216,40 +222,53 @@ void Sigmoid::derive(){
 // 	return a[0] * a[1];
 // }
 
-// double TanH::operation(vector<double>& a){
-// 	return 2.0 / (1.0 + exp(-2.0 * a[0])) - 1.0;
-// }
 
-// void TanH::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &TanH::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
+void TanH::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	tanH(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
 
-// double TanH::deriveOperation1(vector<double>& a){
-// 	return a[0] * (1.0 - a[1] * a[1]);
-// }
+void TanH::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			tanHDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
-// double Softsign::operation(vector<double>& a){
-// 	return a[0] / (1.0 + abs(a[0]));
-// }
+void Softsign::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	softsign(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	getCount = (getCount + 1) % outCount;
+}
 
-// void Softsign::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, inputs[0]->derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &Softsign::deriveOperation1, items1);
-// 			inputs[0]->derive(eval1, t, tf);
-// 		}
-// 	}
-// }
-
-// double Softsign::deriveOperation1(vector<double>& a){
-// 	return a[0] / ((1.0 + abs(a[1])) * (1.0 + abs(a[1])));
-// }
+void Softsign::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			softsignDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
 

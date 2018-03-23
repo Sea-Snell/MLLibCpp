@@ -1,5 +1,3 @@
-#define GROUP_SIZE 16
-
 
 void kernel zeroBuffer(global float* A){
 	A[get_global_id(0)] = 0.0;
@@ -84,61 +82,170 @@ void kernel atan_(global const float* A, global float* B){
 	B[get_global_id(0)] = atan(A[get_global_id(0)]);
 }
 
-void kernel matMul2x2(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
-	float total = 0.0;
-	for (int i = 0; i < ADim[3]; i++){
-		total += A[(get_global_id(0) / BDim[3]) * ADim[3] + i] * B[i * BDim[3] + (get_global_id(0) % BDim[3])];
+void kernel matMul2x2(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C, const int blocksWide){
+	local float ALocal [1024];
+	local float BLocal [1024];
+
+	const int blockSide = 32;
+	const int workPerBlockSide = 4;
+	const int workPerBlockSideSquared = 16;
+	const int threadsPerSide = 8;
+	const int threadsPerSideSquared = 64;
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int aSize1 = ADim[2];
+	const int aSize2 = ADim[3];
+	const int bSize2 = BDim[3];
+	int split = aSize2 / blockSide;
+	if(split * blockSide != aSize2){
+		split += 1;
 	}
-	C[get_global_id(0)] = total;
-}
 
-void kernel matMul2x1(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
-	local float BLocal [GROUP_SIZE];
-
-	int globalId = get_global_id(0);
-	int localId = get_local_id(0);
-	int localSize = get_local_size(0);
-	int bSize = BDim[2];
-	int split = bSize / localSize;
-	float total = 0.0;
+	float aReg = 0.0;
+	float bReg[4] = {};
+	float total[16] = {};
 
 	for (int i = 0; i < split; i++){
-		BLocal[localId] = B[localSize * i + localId];
-		
+		for (int x = 0; x < workPerBlockSideSquared; x++){
+			int pt1 = (localId / threadsPerSide) * workPerBlockSide + (x / workPerBlockSide);
+			int pt2 = (localId % threadsPerSide) * workPerBlockSide + (x % workPerBlockSide);
+			int newLocalId = pt1 * blockSide + pt2;
+			int aRow = (globalId / (threadsPerSideSquared * blocksWide)) * blockSide + pt1;
+			int aCol = i * blockSide + pt2;
+			if (aRow < aSize1 && aCol < aSize2){
+				ALocal[newLocalId] = A[aRow * aSize2 + aCol];
+			}
+			else{
+				ALocal[newLocalId] = 0.0;
+			}
+
+			int bRow = i * blockSide + pt1;
+			int bCol = ((globalId / threadsPerSideSquared) % blocksWide) * blockSide + pt2;
+			if (bRow < aSize2 && bCol < bSize2){
+				BLocal[newLocalId] = B[bRow * bSize2 +  bCol];
+			}
+			else{
+				BLocal[newLocalId] = 0.0;
+			}
+		}
+
 		barrier(CLK_LOCAL_MEM_FENCE);
 
-		if (globalId < ADim[2]){
-			for (int x = 0; x < localSize; x++){
-				total += A[globalId * bSize + i * localSize + x] * BLocal[x];
+		for (int x = 0; x < blockSide; x++){
+			for (int z = 0; z < workPerBlockSide; z++){
+				bReg[z] = BLocal[x * blockSide + (localId % threadsPerSide) * workPerBlockSide + z];
+			}
+
+			for (int n = 0; n < workPerBlockSide; n++){
+				aReg = ALocal[((localId / threadsPerSide) * workPerBlockSide + n) * blockSide + x];
+				for (int m = 0; m < workPerBlockSide; m++){
+					total[n * workPerBlockSide + m] += aReg * bReg[m];
+				}
 			}
 		}
 
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 
-	if (localSize * split + localId < bSize){
-		BLocal[localId] = B[localSize * split + localId];
+
+	for(int x = 0; x < workPerBlockSideSquared; x++){
+		int aRow = (globalId / (threadsPerSideSquared * blocksWide)) * blockSide + (localId / threadsPerSide) * workPerBlockSide + (x / workPerBlockSide);
+		int bCol = ((globalId / threadsPerSideSquared) % blocksWide) * blockSide + (localId % threadsPerSide) * workPerBlockSide + (x % workPerBlockSide);
+		if (aRow < aSize1 && bCol < bSize2){
+			C[aRow * bSize2 + bCol] = total[x];
+		}
+	}
+}
+
+void kernel matMul2x1(constant const int* ADim, global const float* A, global const float* B, global float* C){
+	local float BLocal [16];
+
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int aSize1 = ADim[2];
+	const int aSize2 = ADim[3];
+	int split = aSize2 / localSize;
+	if (split * localSize != aSize2){
+		split += 1;
 	}
 
-	barrier(CLK_LOCAL_MEM_FENCE);
+	float total = 0.0;
 
-	if (globalId < ADim[2]){
-		for (int x = 0; x < (bSize % localSize); x++){
-			total += A[globalId * bSize + split * localSize + x] * BLocal[x];
+	for (int i = 0; i < split; i++){
+		int bItem = localSize * i + localId;
+		if (bItem < aSize2){
+			BLocal[localId] = B[bItem];
 		}
+		
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		if (globalId < aSize1){
+			if ((i + 1) * localSize - 1 < aSize2){
+				for (int x = 0; x < localSize; x++){
+					total += A[globalId * aSize2 + i * localSize + x] * BLocal[x];
+				}
+			}
+			else{
+				for (int x = 0; x < (aSize2 % localSize); x++){
+					total += A[globalId * aSize2 + i * localSize + x] * BLocal[x];
+				}
+			}
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (globalId < aSize1){
 		C[globalId] = total;
 	}
 }
 
-void kernel matMul1x2(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
-	float total = 0.0;
-	for (int i = 0; i < ADim[2]; i++){
-		total += A[i] * B[i * BDim[3] + get_global_id(0)];
+void kernel matMul1x2(global const float* A, constant const int* BDim, global const float* B, global float* C){
+	local float ALocal [16];
+
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int bSize1 = BDim[2];
+	const int bSize2 = BDim[3];
+	int split = bSize1 / localSize;
+	if (split * localSize != bSize1){
+		split += 1;
 	}
-	C[get_global_id(0)] = total;
+
+	float total = 0.0;
+
+	for (int i = 0; i < split; i++){
+		int aItem = localSize * i + localId;
+		if (aItem < bSize1){
+			ALocal[localId] = A[aItem];
+		}
+		
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		if (globalId < bSize2){
+			if ((i + 1) * localSize - 1 < bSize1){
+				for (int x = 0; x < localSize; x++){
+					total += ALocal[x] * B[(i * localSize + x) * bSize2 + globalId];
+				}
+			}
+			else{
+				for (int x = 0; x < (bSize1 % localSize); x++){
+					total += ALocal[x] * B[(i * localSize + x) * bSize2 + globalId];
+				}
+			}
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (globalId < bSize2){
+		C[globalId] = total;
+	}
 }
 
-void kernel matMul1x1(constant const int* ADim, global const float* A, constant const int* BDim, global const float* B, global float* C){
+void kernel matMul1x1(constant const int* ADim, global const float* A, global const float* B, global float* C){
 	float total = 0.0;
 	for (int i = 0; i < ADim[2]; i++){
 		total += A[i] * B[i];
@@ -198,21 +305,179 @@ void kernel min_(global const float* A, global float* B, global int* Idx, const 
 	B[get_global_id(0)] = lowVal;
 }
 
-void kernel meanSquared(global const float* hypothesis, global const float* y, global float* differenceMemo, global float* diffSquared){
-	float diff = hypothesis[get_global_id(0)] - y[get_global_id(0)];
-	differenceMemo[get_global_id(0)] = diff;
-	diffSquared[get_global_id(0)] = diff * diff;
+void kernel meanSquared(constant const int* hypothesisDims, global const float* hypothesis, global const float* y, global float* differenceMemo, global float* diffSquaredResedue, global float* result, const int dimentionSize){
+	local float diffSquared [128];
+
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int groupId = get_group_id(0);
+	const int numGroups = get_num_groups(0);
+	const int totalSize = hypothesisDims[0];
+
+	if (globalId < totalSize){
+		float diff = hypothesis[globalId] - y[globalId];
+		differenceMemo[globalId] = diff;
+		diffSquared[localId] = diff * diff;
+	}
+	else{
+		diffSquared[localId] = 0.0;
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	int currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			diffSquared[localId] += diffSquared[localId + currentSize];
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	diffSquaredResedue[groupId] = diffSquared[0];
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (globalId == 0){
+		float total2 = 0.0;
+		for (int i = 0; i < numGroups; i++){
+			total2 += diffSquaredResedue[i];
+		}
+		result[0] = total2 / dimentionSize;
+	}
 }
 
-void kernel crossEntropy(global const float* hypothesis, global const float* y, global float* C){
-	float hypVal = hypothesis[get_global_id(0)];
-	float yVal = y[get_global_id(0)];
-	C[get_global_id(0)] = -(yVal * log(hypVal) + ((float)(1.0) - yVal) * log((float)(1.0) - hypVal));
+void kernel crossEntropy(constant const int* hypothesisDims, global const float* hypothesis, global const float* y, global float* crossResultResedue, global float* result, const int dimentionSize){
+	local float crossResult [128];
+
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int groupId = get_group_id(0);
+	const int numGroups = get_num_groups(0);
+	const int totalSize = hypothesisDims[0];
+
+	if (globalId < totalSize){
+		float hypVal = hypothesis[globalId];
+		float yVal = y[globalId];
+		crossResult[localId] = -(yVal * log(hypVal) + ((float)(1.0) - yVal) * log((float)(1.0) - hypVal));
+	}
+	else{
+		crossResult[localId] = 0.0;
+	}
+
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	int currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			crossResult[localId] += crossResult[localId + currentSize];
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	crossResultResedue[groupId] = crossResult[0];
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (globalId == 0){
+		float total2 = 0.0;
+		for (int i = 0; i < numGroups; i++){
+			total2 += crossResultResedue[i];
+		}
+		result[0] = total2 / dimentionSize;
+	}
 }
 
 void kernel sigmoid(global const float* A, global float* B){
 	B[get_global_id(0)] = ((float)(1.0) / ((float)(1.0) + exp(-A[get_global_id(0)])));
 }
+
+void kernel reLU(global const float* A, global float* B){
+	float AVal = A[get_global_id(0)];
+	if (AVal >= 0.0){
+		B[get_global_id(0)] = AVal;
+	}
+	else{
+		B[get_global_id(0)] = 0.0;
+	}
+}
+
+void kernel leakyReLU(global const float* A, global float* B){
+	float AVal = A[get_global_id(0)];
+	if (AVal >= 0.0){
+		B[get_global_id(0)] = AVal;
+	}
+	else{
+		B[get_global_id(0)] = 0.01 * AVal;
+	}
+}
+
+void kernel gaussian(global const float* A, global float* B){
+	float AVal = A[get_global_id(0)];
+	B[get_global_id(0)] = exp(-AVal * AVal);
+}
+
+void kernel tanH(global const float* A, global float* B){
+	B[get_global_id(0)] = ((float)(2.0) / ((float)(1.0) + exp((float)(-2.0) * A[get_global_id(0)]))) - (float)(1.0);
+}
+
+void kernel softsign(global const float* A, global float* B){
+	float AVal = A[get_global_id(0)];
+	B[get_global_id(0)] = AVal / (1 + fabs(AVal));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -278,85 +543,307 @@ void kernel atanDerivative(global const float* A, constant const int* seedDim, g
 	out[get_global_id(0)] = (1.0 / (1.0 + pow(A[get_global_id(0)], (float)2.0))) * seed[get_global_id(0) % seedDim[0]];
 }
 
-void kernel matMul2x2Derivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
-	float total = 0.0;
-	for (int i = 0; i < BDim[3]; i++){
-		total += seed[((get_global_id(0) / BDim[2]) * BDim[3] + i) % seedDim[0]] * B[(get_global_id(0) % BDim[2]) * BDim[3] + i];
+void kernel matMul2x2Derivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, constant const int* outDim, global float* out, const int blocksWide){
+	local float seedLocal [1024];
+	local float BLocal [1024];
+
+	const int blockSide = 32;
+	const int workPerBlockSide = 4;
+	const int workPerBlockSideSquared = 16;
+	const int threadsPerSide = 8;
+	const int threadsPerSideSquared = 64;
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int seedSize1 = outDim[2];
+	const int bSize1 = BDim[2];
+	const int bSize2 = BDim[3];
+	int split = bSize2 / blockSide;
+	if(split * blockSide != bSize2){
+		split += 1;
 	}
-	out[get_global_id(0)] = total;
-}
 
-void kernel matMul2x2Derivative1(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, constant const int* outDim, global float* out){
-	float total = 0.0;
-	for (int i = 0; i < ADim[2]; i++){
-		total += A[i * ADim[3] + (get_global_id(0) / outDim[3])] * seed[(i * outDim[3] + (get_global_id(0) % outDim[3])) % seedDim[0]];
-	}
-	out[get_global_id(0)] = total;
-}
-
-void kernel matMul2x1Derivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
-	out[get_global_id(0)] = seed[(get_global_id(0) / BDim[2]) % seedDim[0]] * B[get_global_id(0) % BDim[2]];
-}
-
-void kernel matMul2x1Derivative1(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
-	local float seedLocal [GROUP_SIZE];
-
-	int globalId = get_global_id(0);
-	int ASize2 = ADim[3];
-	int localId = get_local_id(0);
-	int localSize = get_local_size(0);
-	int seedSize = seedDim[2];
-	int split = seedSize / localSize;
-	float total = 0.0;
+	float seedReg = 0.0;
+	float bReg[4] = {};
+	float total[16] = {};
 
 	for (int i = 0; i < split; i++){
-		seedLocal[localId] = seed[localSize * i + localId];
-		
+		for (int x = 0; x < workPerBlockSideSquared; x++){
+			int pt1 = (localId / threadsPerSide) * workPerBlockSide + (x / workPerBlockSide);
+			int pt2 = (localId % threadsPerSide) * workPerBlockSide + (x % workPerBlockSide);
+			int newLocalId = pt1 * blockSide + pt2;
+			int seedRow = (globalId / (threadsPerSideSquared * blocksWide)) * blockSide + pt1;
+			int seedCol = i * blockSide + pt2;
+			if (seedRow < seedSize1 && seedCol < bSize2){
+				seedLocal[newLocalId] = seed[(seedRow * bSize2 + seedCol) % seedDim[0]];
+			}
+			else{
+				seedLocal[newLocalId] = 0.0;
+			}
+
+			int bRow = i * blockSide + pt1;
+			int bCol = ((globalId / threadsPerSideSquared) % blocksWide) * blockSide + pt2;
+			if (bRow < bSize2 && bCol < bSize1){
+				BLocal[newLocalId] = B[bCol * bSize2 + bRow];
+			}
+			else{
+				BLocal[newLocalId] = 0.0;
+			}
+		}
+
 		barrier(CLK_LOCAL_MEM_FENCE);
 
-		if (globalId < ASize2){
-			for (int x = 0; x < localSize; x++){
-				total += A[(i * localSize + x) * ASize2 + globalId] * seedLocal[x];
+		for (int x = 0; x < blockSide; x++){
+			for (int z = 0; z < workPerBlockSide; z++){
+				bReg[z] = BLocal[x * blockSide + (localId % threadsPerSide) * workPerBlockSide + z];
+			}
+
+			for (int n = 0; n < workPerBlockSide; n++){
+				seedReg = seedLocal[((localId / threadsPerSide) * workPerBlockSide + n) * blockSide + x];
+				for (int m = 0; m < workPerBlockSide; m++){
+					total[n * workPerBlockSide + m] += seedReg * bReg[m];
+				}
 			}
 		}
 
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 
-	if (localSize * split + localId < seedSize){
-		seedLocal[localId] = seed[localSize * split + localId];
+
+	for(int x = 0; x < workPerBlockSideSquared; x++){
+		int seedRow = (globalId / (threadsPerSideSquared * blocksWide)) * blockSide + (localId / threadsPerSide) * workPerBlockSide + (x / workPerBlockSide);
+		int bCol = ((globalId / threadsPerSideSquared) % blocksWide) * blockSide + (localId % threadsPerSide) * workPerBlockSide + (x % workPerBlockSide);
+		if (seedRow < seedSize1 && bCol < bSize1){
+			out[seedRow * bSize1 + bCol] = total[x];
+		}
+	}
+}
+
+void kernel matMul2x2Derivative1(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, constant const int* outDim, global float* out, const int blocksWide){
+	local float ALocal [1024];
+	local float seedLocal [1024];
+
+	const int blockSide = 32;
+	const int workPerBlockSide = 4;
+	const int workPerBlockSideSquared = 16;
+	const int threadsPerSide = 8;
+	const int threadsPerSideSquared = 64;
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int aSize1 = ADim[2];
+	const int aSize2 = ADim[3];
+	const int seedSize2 = outDim[3];
+	int split = aSize1 / blockSide;
+	if(split * blockSide != aSize1){
+		split += 1;
+	}
+
+	float aReg = 0.0;
+	float seedReg[4] = {};
+	float total[16] = {};
+
+	for (int i = 0; i < split; i++){
+		for (int x = 0; x < workPerBlockSideSquared; x++){
+			int pt1 = (localId / threadsPerSide) * workPerBlockSide + (x / workPerBlockSide);
+			int pt2 = (localId % threadsPerSide) * workPerBlockSide + (x % workPerBlockSide);
+			int newLocalId = pt1 * blockSide + pt2;
+			int aRow = (globalId / (threadsPerSideSquared * blocksWide)) * blockSide + pt1;
+			int aCol = i * blockSide + pt2;
+			if (aRow < aSize2 && aCol < aSize1){
+				ALocal[newLocalId] = A[aCol * aSize2 + aRow];
+			}
+			else{
+				ALocal[newLocalId] = 0.0;
+			}
+
+			int seedRow = i * blockSide + pt1;
+			int seedCol = ((globalId / threadsPerSideSquared) % blocksWide) * blockSide + pt2;
+			if (seedRow < aSize1 && seedCol < seedSize2){
+				seedLocal[newLocalId] = seed[(seedRow * seedSize2 + seedCol) % seedDim[0]];
+			}
+			else{
+				seedLocal[newLocalId] = 0.0;
+			}
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		for (int x = 0; x < blockSide; x++){
+			for (int z = 0; z < workPerBlockSide; z++){
+				seedReg[z] = seedLocal[x * blockSide + (localId % threadsPerSide) * workPerBlockSide + z];
+			}
+
+			for (int n = 0; n < workPerBlockSide; n++){
+				aReg = ALocal[((localId / threadsPerSide) * workPerBlockSide + n) * blockSide + x];
+				for (int m = 0; m < workPerBlockSide; m++){
+					total[n * workPerBlockSide + m] += aReg * seedReg[m];
+				}
+			}
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+
+	for(int x = 0; x < workPerBlockSideSquared; x++){
+		int aRow = (globalId / (threadsPerSideSquared * blocksWide)) * blockSide + (localId / threadsPerSide) * workPerBlockSide + (x / workPerBlockSide);
+		int seedCol = ((globalId / threadsPerSideSquared) % blocksWide) * blockSide + (localId % threadsPerSide) * workPerBlockSide + (x % workPerBlockSide);
+		if (aRow < aSize2 && seedCol < seedSize2){
+			out[aRow * seedSize2 + seedCol] = total[x];
+		}
+	}
+}
+
+void kernel matMul2x1Derivative0(global const float* B, constant const int* seedDim, global const float* seed, constant const int* outDim, global float* out, const int blocksWide){
+	local float BLocal [32];
+	local float seedLocal [32];
+
+	const int blockSide = 32;
+	const int blockSideSquared = 1024;
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int outSize1 = outDim[2];
+	const int outSize2 = outDim[3];
+
+	int pt1 = localId / blockSide;
+	int pt2 = localId % blockSide;
+	int seedItem = (globalId / (blockSideSquared * blocksWide)) * blockSide + pt1;
+	if (pt2 == 0 && seedItem < outSize1){
+		seedLocal[pt1] = seed[seedItem % seedDim[0]];
+	}
+
+	int bItem = ((globalId / blockSideSquared) % blocksWide) * blockSide + pt2;
+	if (pt1 == 0 && bItem < outSize2){
+		BLocal[pt2] = B[bItem];
 	}
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	if (globalId < ASize2){
-		for (int x = 0; x < (seedSize % localSize); x++){
-			total += A[(split * localSize + x) * ASize2 + globalId] * seedLocal[x];
+	if (seedItem < outSize1 && bItem < outSize2){
+		out[seedItem * outSize2 + bItem] = seedLocal[pt1] * BLocal[pt2];
+	}
+}
+
+void kernel matMul2x1Derivative1(constant const int* ADim, global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	local float seedLocal [16];
+
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int aSize1 = ADim[2];
+	const int aSize2 = ADim[3];
+	int split = aSize1 / localSize;
+	if(split * localSize != aSize1){
+		split += 1;
+	}
+
+	float total = 0.0;
+
+	for (int i = 0; i < split; i++){
+		int seedItem = localSize * i + localId;
+		if (seedItem < aSize1){
+			seedLocal[localId] = seed[seedItem % seedDim[0]];
 		}
+		
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		if (globalId < aSize2){
+			if ((i + 1) * localSize - 1 < aSize1){
+				for (int x = 0; x < localSize; x++){
+					total += A[(i * localSize + x) * aSize2 + globalId] * seedLocal[x];
+				}
+			}
+			else{
+				for (int x = 0; x < (aSize1 % localSize); x++){
+					total += A[(i * localSize + x) * aSize2 + globalId] * seedLocal[x];
+				}
+			}
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (globalId < aSize2){
 		out[globalId] = total;
 	}
 }
 
 
 void kernel matMul1x2Derivative0(constant const int* BDim, global const float* B, constant const int* seedDim, global const float* seed, global float* out){
-	float total = 0.0;
-	for (int i = 0; i < BDim[3]; i++){
-		total += seed[i % seedDim[0]] * B[get_global_id(0) * BDim[3] + i];
+	local float seedLocal [16];
+
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int bSize1 = BDim[2];
+	const int bSize2 = BDim[3];
+	int split = bSize2 / localSize;
+	if (split * localSize != bSize2){
+		split += 1;
 	}
-	out[get_global_id(0)] = total;
+
+	float total = 0.0;
+
+	for (int i = 0; i < split; i++){
+		int seedItem = localSize * i + localId;
+		if (seedItem < bSize2){
+			seedLocal[localId] = seed[seedItem % seedDim[0]];
+		}
+		
+		barrier(CLK_LOCAL_MEM_FENCE);
+
+		if (globalId < bSize1){
+			if ((i + 1) * localSize - 1 < bSize2){
+				for (int x = 0; x < localSize; x++){
+					total += B[globalId * bSize2 + i * localSize + x] * seedLocal[x];
+				}
+			}
+			else{
+				for (int x = 0; x < (bSize2 % localSize); x++){
+					total += B[globalId * bSize2 + i * localSize + x] * seedLocal[x];
+				}
+			}
+		}
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (globalId < bSize1){
+		out[globalId] = total;
+	}
 }
 
-void kernel matMul1x2Derivative1(global const float* A, constant const int* seedDim, global const float* seed, constant const int* outDim, global float* out){
-	out[get_global_id(0)] = A[get_global_id(0) / outDim[3]] * seed[(get_global_id(0) % outDim[3]) % seedDim[0]];
+void kernel matMul1x2Derivative1(global const float* A, constant const int* seedDim, global const float* seed, constant const int* outDim, global float* out, const int blocksWide){
+	local float ALocal [32];
+	local float seedLocal [32];
+
+	const int blockSide = 32;
+	const int blockSideSquared = 1024;
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int outSize1 = outDim[2];
+	const int outSize2 = outDim[3];
+
+	int pt1 = localId / blockSide;
+	int pt2 = localId % blockSide;
+	int seedItem = ((globalId / blockSideSquared) % blocksWide) * blockSide + pt2;
+	if (pt1 == 0 && seedItem < outSize2){
+		seedLocal[pt2] = seed[seedItem % seedDim[0]];
+	}
+
+	int aItem = (globalId / (blockSideSquared * blocksWide)) * blockSide + pt1;
+	if (pt2 == 0 && aItem < outSize1){
+		ALocal[pt1] = A[aItem];
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	if (seedItem < outSize2 && aItem < outSize1){
+		out[aItem * outSize2 + seedItem] = ALocal[pt1] * seedLocal[pt2];
+	}
 }
 
-
-void kernel matMul1x1Derivative0(global const float* B, global const float* seed, global float* out){
+void kernel matMul1x1Derivative0(global const float* B, constant const float* seed, global float* out){
 	out[get_global_id(0)] = B[get_global_id(0)] * seed[0];
-}
-
-void kernel matMul1x1Derivative1(global const float* A, global const float* seed, global float* out){
-	out[get_global_id(0)] = A[get_global_id(0)] * seed[0];
 }
 
 void kernel sumDerivative(constant const int* seedDim, global const float* seed, global float* out, const int dimentionSize, const int preSum){
@@ -387,28 +874,54 @@ void kernel maxDerivativeSmallSeed(constant const int* seedDim, global const flo
 	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * Idx[get_global_id(0)];
 }
 
-void kernel meanSquaredDerivative(constant const int* seedDim, global const float* seed, global const float* differenceMemo, global float* out, const int dimentionSize, const int preSum){
-	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]] * differenceMemo[get_global_id(0)] * (2.0 / ((float)dimentionSize));
+void kernel meanSquaredDerivative(constant const float* seed, global const float* differenceMemo, global float* out, const int dimentionSize){
+	out[get_global_id(0)] = seed[0] * differenceMemo[get_global_id(0)] * (2.0 / ((float)dimentionSize));
 }
 
-void kernel meanSquaredDerivativeSmallSeed(constant const int* seedDim, global const float* seed, global const float* differenceMemo, global float* out, const int dimentionSize){
-	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * differenceMemo[get_global_id(0)] * (2.0 / ((float)dimentionSize));
-}
-
-void kernel crossEntropyDerivative(constant const int* seedDim, global const float* seed, global const float* hypothesis, global const float* y, global float* out, const int dimentionSize, const int preSum){
+void kernel crossEntropyDerivative(constant const float* seed, global const float* hypothesis, global const float* y, global float* out, const int dimentionSize){
 	float hypVal = hypothesis[get_global_id(0)];
-	out[get_global_id(0)] = seed[((get_global_id(0) % preSum) + (get_global_id(0) / (preSum * dimentionSize)) * preSum) % seedDim[0]] * ((float)(-1.0) / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
-}
-
-void kernel crossEntropyDerivativeSmallSeed(constant const int* seedDim, global const float* seed, global const float* hypothesis, global const float* y, global float* out, const int dimentionSize){
-	float hypVal = hypothesis[get_global_id(0)];
-	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] * ((float)(-1.0) / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
+	out[get_global_id(0)] = seed[0] * ((float)(-1.0) / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
 }
 
 void kernel sigmoidDerivative(global const float* C, constant const int* seedDim, global const float* seed, global float* out){
 	float CVal = C[get_global_id(0)];
 	out[get_global_id(0)] = (CVal * ((float)(1.0) - CVal)) * seed[get_global_id(0) % seedDim[0]];
 }
+
+void kernel reLUDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	float AVal = A[get_global_id(0)];
+	if (AVal >= 0.0){
+		out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]];
+	}
+	else{
+		out[get_global_id(0)] = 0.0;
+	}
+}
+
+void kernel leakyReLUDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	float AVal = A[get_global_id(0)];
+	if (AVal >= 0.0){
+		out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]];
+	}
+	else{
+		out[get_global_id(0)] = 0.01 * seed[get_global_id(0) % seedDim[0]];
+	}
+}
+
+void kernel gaussianDerivative(global const float* A, global const float* C, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = -2.0 * A[get_global_id(0)] * C[get_global_id(0)] * seed[get_global_id(0) % seedDim[0]];
+}
+
+void kernel tanHDerivative(global const float* C, constant const int* seedDim, global const float* seed, global float* out){
+	float CVal = C[get_global_id(0)];
+	out[get_global_id(0)] = (1.0 - CVal * CVal) * seed[get_global_id(0) % seedDim[0]];
+}
+
+void kernel softsignDerivative(global const float* A, constant const int* seedDim, global const float* seed, global float* out){
+	int pt1 = 1.0 + fabs(A[get_global_id(0)]);
+	out[get_global_id(0)] = (1.0 / (pt1 * pt1)) * seed[get_global_id(0) % seedDim[0]];
+}
+
 
 
 

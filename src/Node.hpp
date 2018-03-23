@@ -12,8 +12,6 @@
 #include "openCL.hpp"
 using namespace std;
 
-#define GROUP_SIZE 16
-
 extern cl::Context context;
 extern cl::CommandQueue queue;
 extern cl::Program program;
@@ -37,18 +35,23 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer> tan_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> asin_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> acos_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> atan_;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> matMul2x2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> sum_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> meanSquared;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> crossEntropy;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquared;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropy;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> sigmoid;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> reLU;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> leakyReLU;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> gaussian;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> tanH;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> softsign;
 
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1;
@@ -64,14 +67,13 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanDeriva
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> asinDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> acosDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> atanDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative0;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x2Derivative1;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> matMul2x2Derivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> matMul2x2Derivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> matMul2x1Derivative0;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2Derivative0;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2Derivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> matMul1x2Derivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative0;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> sumDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, int> meanDerivativeSmallSeed;
@@ -79,11 +81,14 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> maxDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanSquaredDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivativeSmallSeed;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> crossEntropyDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropyDerivativeSmallSeed;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropyDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sigmoidDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> reLUDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> leakyReLUDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> gaussianDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanHDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> softsignDerivative;
 
 
 void initialize();

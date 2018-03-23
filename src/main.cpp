@@ -19,6 +19,7 @@ int main(){
 
 	initialize();
 
+	// linearReg();
 	MNISTFFNN();
 
 	return 0;
@@ -27,33 +28,36 @@ int main(){
 void MNISTFFNN(){
 	Constant&& xData = Constant(NumObject(), "x");
 	Constant&& yData = Constant(NumObject(), "y");
-	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 10}, 0.0, 1.0 / sqrt(784.0)), "w1");
-	// Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
-	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias1");
-	// Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
+	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 40}, 0.0, 1.0 / sqrt(784.0)), "w1");
+	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
+	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{40}, 0.0, 1.0), "bias1");
+	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
 
-	Node* layer1 = new Sigmoid(new Add(new MatMul(&xData, &weights1), &bias1));
-	// Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
+	Node* layer1 = new ReLU(new Add(new MatMul(&xData, &weights1), &bias1));
+	Node* layer2 = new Sigmoid(new Add(new MatMul(layer1, &weights2), &bias2));
 
-	Node* cost = new Sum(new CrossEntropy(layer1, &yData));
+	Node* cost = new CrossEntropy(layer2, &yData);
 
-	vector<NumObject> trainData = getTrain(1000);
+	vector<NumObject> trainData = getTrain(100);
 	xData.value = trainData[0];
 	yData.value = trainData[1];
 
 	initalize(cost);
 
-	vector<Variable*> variables = {&weights1, &bias1};
+	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2};
 
 	cout << "starting..." << endl;
-	for(int i = 0; i < 501; i++){
+	for(int i = 0; i < 100001; i++){
 		derive(cost);
 		gradientDescent(variables, 0.1);
 
 		if(i % 10 == 0){
 			cout << i << ", " << showValue(cost).describe() << endl;
+			// cout << showValue(&weights1).describe() << endl;
 		}
 	}
+
+	cout << showValue(cost).describe() << endl;
 
 	// vector<NumObject> testData = getTest(1000);
 	// xData.value = testData[0];
@@ -134,18 +138,15 @@ void linearReg(){
 	vector<Variable*> variables = {&weights};
 
 	cout << "starting..." << endl;
-	int start = clock();
 	for(int i = 0; i < 50000; i++){
 		derive(cost);
 		gradientDescent(variables, 0.0000001);
 
-		// if(i % 10 == 0){
-		// 	cout << i << ", " << showValue(cost).describe() << endl;
-		// }
+		if(i % 10 == 0){
+			cout << i << ", " << showValue(cost).describe() << endl;
+		}
 	}
 	cout << showValue(cost).describe() << endl;
-	int end = clock();
-	cout <<  "Time: " << (end - start) / double(CLOCKS_PER_SEC) << endl;
 	// cout << showValue(cost).describe() << endl;
 	// weights.updateHostVals();
 	// cout << weights.describe() << endl;
