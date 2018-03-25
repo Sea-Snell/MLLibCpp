@@ -22,13 +22,26 @@ int main(){
 
 	// MNISTFFNN();
 
-	Variable&& test1 = Variable(NumObject(vector<double> {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, vector<int> {2, 3}));
-	Constant&& test2 = Constant(NumObject(vector<double> {0.0, 1.0, 0.0, 1.0, 0.0, 0.0}, vector<int> {2, 3}));
+	vector<double> tempVec1 = {};
+	vector<double> tempVec2 = {};
+	for (int i = 0; i < 1000; i++){
+		tempVec1.push_back((float)(i));
+		if ((i / 10) % 10 == i % 10){
+			tempVec2.push_back(1.0);
+		}
+		else{
+			tempVec2.push_back(0.0);
+		}
+	}
+	Variable&& test1 = Variable(NumObject(tempVec1, vector<int> {100, 10}));
+	Constant&& test2 = Constant(NumObject(tempVec2, vector<int> {100, 10}));
 
-	Node* expression = new CrossEntropySoftmax(&test1, &test2);
+	CrossEntropySoftmax expression = CrossEntropySoftmax(&test1, &test2);
 
-	cout << derive(expression).describe() << endl;
+	cout << derive(&expression).describe() << endl;
 	cout << test1.derivative.describe() << endl;
+
+	cout << expression.softmaxMemo[0].describe() << endl;
 
 	return 0;
 }
