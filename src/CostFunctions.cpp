@@ -169,6 +169,99 @@ string CrossEntropy::describe(){
 	return name + "(" + inputs[0]->describe() + ", " + inputs[1]->describe() + ", " + to_string(dimention) + ")";
 }
 
+
+
+
+CrossEntropySoftmax::CrossEntropySoftmax(Node* hypothesis, Node* y, int dimentionVal, int meanDimentionVal){
+	dimention = dimentionVal;
+	meanDimention = meanDimentionVal;
+	GROUP_SIZE = 128;
+	inputs.push_back(hypothesis);
+	inputs.push_back(y);
+	hypothesis->outputs.push_back(this);
+	y->outputs.push_back(this);
+	hypothesis->outCount += 1;
+	y->outCount += 1;
+	name = "CrossEntropySoftmax";
+}
+
+void CrossEntropySoftmax::getDimentions(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+
+	inputs[0]->getDimentions();
+	inputs[1]->getDimentions();
+
+	resultDims.rank = 0;
+	resultDims.size = 1;
+	resultDims.dimentions = {};
+
+	resultDims.setBuf();
+
+	if (dimention == -1){
+		dimention = inputs[0]->resultDims.rank - 1;
+	}
+
+	preSum = 1;
+	for (int i = dimention + 1; i < inputs[0]->resultDims.rank; i++){
+		preSum *= inputs[0]->resultDims.dimentions[i];
+	}
+
+	int dimSize = inputs[0]->resultDims.dimentions[dimention] + (GROUP_SIZE - inputs[0]->resultDims.dimentions[dimention] % GROUP_SIZE);
+	if (inputs[0]->resultDims.dimentions[dimention] % GROUP_SIZE == 0){
+		dimSize -= GROUP_SIZE;
+	}
+	blocksWide = dimSize / GROUP_SIZE;
+	globalSize = (inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]) * dimSize;
+
+	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	resedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * ((inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]) * blocksWide));
+	softmaxMemo = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size);
+	getCount = (getCount + 1) % outCount;
+}
+
+void CrossEntropySoftmax::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	inputs[1]->getValue();
+	crossEntropySoftmax(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, inputs[1]->result, resedue, softmaxMemo, result, inputs[0]->resultDims.dimentions[dimention], inputs[0]->resultDims.dimentions[meanDimention], preSum, blocksWide);
+	getCount = (getCount + 1) % outCount;
+}
+
+void CrossEntropySoftmax::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		outDims.push_back(inputs[0]->resultDims);
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
+
+void CrossEntropySoftmax::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			crossEntropySoftmaxDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, softmaxMemo, inputs[1]->result, out[0], inputs[0]->resultDims.dimentions[meanDimention]);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
+
+string CrossEntropySoftmax::describe(){
+	return name + "(" + inputs[0]->describe() + ", " + inputs[1]->describe() + ", " + to_string(dimention) + ", " + to_string(meanDimention) + ")";
+}
+
 // CrossEntropySoftmax::CrossEntropySoftmax(Node* hypothesis, Node* y, int dimentionVal, int meanDimentionVal){
 // 	outCount = 0;
 // 	inputs.push_back(hypothesis);

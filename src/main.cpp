@@ -19,8 +19,30 @@ int main(){
 
 	initialize();
 
+	Variable&& test1 = Variable(NumObject(vector<float> {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, vector<int> {2, 3}));
+	Constant&& test2 = Constant(NumObject(vector<float> {0.0, 1.0, 0.0, 1.0, 0.0, 0.0}, vector<int> {2, 3}));
+
+	Node* expression1 = new CrossEntropy(new Softmax(&test1), &test2);
+
+	initalize(expression1);
+
+	cout << getValue(expression1).describe() << endl;
+
+	clearHistory(&test1);
+	clearHistory(&test2);
+
+	CrossEntropySoftmax expression2 = CrossEntropySoftmax(&test1, &test2);
+
+	initalize(&expression2);
+
+	cout << getValue(&expression2).describe() << endl;
+
+	// NumObject tempBuf = NumObject(vector<int> {2, 3}, 0.0);
+	// queue.enqueueReadBuffer(expression2.softmaxMemo, CL_TRUE, 0, sizeof(float) * 6, &tempBuf.values[0]);
+
+	// cout << tempBuf.describe() << endl;
 	// linearReg();
-	MNISTFFNN();
+	// MNISTFFNN();
 
 	return 0;
 }
@@ -34,9 +56,9 @@ void MNISTFFNN(){
 	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
 
 	Node* layer1 = new ReLU(new Add(new MatMul(&xData, &weights1), &bias1));
-	Node* layer2 = new Sigmoid(new Add(new MatMul(layer1, &weights2), &bias2));
+	Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
 
-	Node* cost = new CrossEntropy(layer2, &yData);
+	Node* cost = new CrossEntropySoftmax(layer2, &yData);
 
 	vector<NumObject> trainData = getTrain(100);
 	xData.value = trainData[0];
@@ -53,7 +75,6 @@ void MNISTFFNN(){
 
 		if(i % 10 == 0){
 			cout << i << ", " << showValue(cost).describe() << endl;
-			// cout << showValue(&weights1).describe() << endl;
 		}
 	}
 

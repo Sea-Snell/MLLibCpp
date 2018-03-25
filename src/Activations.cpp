@@ -97,130 +97,88 @@ void Gaussian::derive(){
 	}
 }
 
-// Softmax::Softmax(Node* a, int dimentionVal){
-// 	outCount = 0;
-// 	inputs.push_back(a);
-// 	a->outCount += 1;
-// 	name = "Softmax";
-// 	dimention = dimentionVal;
-// 	dCallCount = 0;
-// 	gCallCount = 0;
-// }
+Softmax::Softmax(Node* a, int dimentionVal){
+	inputs.push_back(a);
+	a->outputs.push_back(this);
+	a->outCount += 1;
+	name = "Softmax";
+	dimention = dimentionVal;
+	GROUP_SIZE = 128;
+}
 
-// NumObject Softmax::getValue(int t, int tf){
-// 	gCallCount += 1;
-// 	if(gCallCount > 1){
-// 		if(gCallCount >= outCount){
-// 			gCallCount = 0;
-// 		}
-// 		return derivativeMemo[t];
-// 	}
-// 	if(gCallCount >= outCount){
-// 		gCallCount = 0;
-// 	}
+void Softmax::getDimentions(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
 
-// 	NumObject a = inputs[0]->getValue(t, tf);
+	inputs[0]->getDimentions();
 
-// 	if(dimention == -1){
-// 		dimention = a.rank - 1;
-// 	}
+	resultDims.rank = inputs[0]->resultDims.rank;
+	resultDims.size = inputs[0]->resultDims.size;
+	resultDims.dimentions = inputs[0]->resultDims.dimentions;
 
-// 	vector<int> newDimentions;
-// 	for(int i = 0; i < a.rank; i++){
-// 		if (i != dimention){
-// 			newDimentions.push_back(a.dimentions[i]);
-// 		}
-// 	}
-// 	double lowVal = -numeric_limits<double>::infinity();
-// 	NumObject maxVals = NumObject(newDimentions, lowVal);
+	resultDims.setBuf();
 
-// 	int preSum = 1;
-// 	for(int i = 0; i < dimention; i++){
-// 		preSum *= a.dimentions[i];
-// 	}
-// 	int postSum = a.values.size() / (preSum * a.dimentions[dimention]);
+	if (dimention == -1){
+		dimention = resultDims.rank - 1;
+	}
 
-// 	for(int i = 0; i < preSum; i++){
-// 		for(int x = 0; x < a.dimentions[dimention]; x++){
-// 			for(int z = 0; z < postSum; z++){
-// 					maxVals.values[i * postSum + z] = max(maxVals.values[i * postSum + z], a.values[i * postSum * a.dimentions[dimention] + postSum * x + z]);
-// 			}
-// 		}
-// 	}
+	preSum = 1;
+	for (int i = dimention + 1; i < resultDims.rank; i++){
+		preSum *= resultDims.dimentions[i];
+	}
 
-// 	NumObject temp = NumObject(maxVals.dimentions, 0.0);
-// 	for(int i = 0; i < preSum; i++){
-// 		for(int x = 0; x < a.dimentions[dimention]; x++){
-// 			for(int z = 0; z < postSum; z++){
-// 				temp.values[i * postSum + z] += exp(a.values[i * postSum * a.dimentions[dimention] + x * postSum + z] - maxVals.values[i * postSum + z]);
-// 			}
-// 		}
-// 	}
+	int dimSize = resultDims.dimentions[dimention] + (GROUP_SIZE - resultDims.dimentions[dimention] % GROUP_SIZE);
+	if (resultDims.dimentions[dimention] % GROUP_SIZE == 0){
+		dimSize -= GROUP_SIZE;
+	}
+	blocksWide = dimSize / GROUP_SIZE;
+	globalSize = (resultDims.size / resultDims.dimentions[dimention]) * dimSize;
 
-// 	vector<NumObject> items1 = {maxVals, temp};
-// 	NumObject temp2 = mapVals(this, &Softmax::operation1, items1);
+	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	resedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * ((resultDims.size / resultDims.dimentions[dimention]) * blocksWide));
+	getCount = (getCount + 1) % outCount;
+}
 
-// 	NumObject ans = NumObject(a.dimentions);
-// 	for(int i = 0; i < preSum; i++){
-// 		for(int x = 0; x < a.dimentions[dimention]; x++){
-// 			for(int z = 0; z < postSum; z++){
-// 				ans.values.push_back(exp(a.values[i * postSum * a.dimentions[dimention] + x * postSum + z] - temp2.values[i * postSum + z]));
-// 			}
-// 		}
-// 	}
+void Softmax::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	softmax(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resedue, result, resultDims.dimentions[dimention], preSum, blocksWide);
+	getCount = (getCount + 1) % outCount;
+}
 
-// 	return memoize(ans, t, tf);
-// }
+void Softmax::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
 
-// double Softmax::operation1(vector<double>& a){
-// 	return a[0] + log(a[1]);
-// }
+	if (getCount == 0){
+		outDims.push_back(resultDims);
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
 
-// void Softmax::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		if (typeid(*inputs[0]) != typeid(Constant)){
-// 			vector<NumObject> items1 = {tempSeed, derivativeMemo[t]};
-// 			NumObject eval1 = mapVals(this, &Softmax::deriveOperation1, items1);
+void Softmax::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			softmaxDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), result, seedDims.dimBuf, seed, resedue, out[0], resultDims.dimentions[dimention], preSum, blocksWide);
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+	}
+}
 
-// 			vector<int> newDimentions;
-// 			for(int i = 0; i < inputs[0]->derivativeMemo[t].rank; i++){
-// 				if (i != dimention){
-// 					newDimentions.push_back(inputs[0]->derivativeMemo[t].dimentions[i]);
-// 				}
-// 			}
-
-// 			int preSum = 1;
-// 			for(int i = 0; i < dimention; i++){
-// 				preSum *= eval1.dimentions[i];
-// 			}
-// 			int postSum = eval1.values.size() / (preSum * eval1.dimentions[dimention]);
-
-// 			NumObject sums = NumObject(newDimentions, 0.0);
-// 			for(int i = 0; i < preSum; i++){
-// 				for(int x = 0; x < eval1.dimentions[dimention]; x++){
-// 					for(int z = 0; z < postSum; z++){
-// 						sums.values[i * postSum + z] += eval1.values[i * postSum * eval1.dimentions[dimention] + x * postSum + z];
-// 					}
-// 				}
-// 			}
-
-// 			NumObject ans = NumObject(eval1.dimentions);
-// 			for(int i = 0; i < preSum; i++){
-// 				for(int x = 0; x < eval1.dimentions[dimention]; x++){
-// 					for(int z = 0; z < postSum; z++){
-// 						ans.values.push_back(derivativeMemo[t].values[i * postSum * eval1.dimentions[dimention] + x * postSum + z] * (tempSeed.values[(i * postSum * eval1.dimentions[dimention] + x * postSum + z) % tempSeed.values.size()] - sums.values[i * postSum + z]));
-// 					}
-// 				}
-// 			}
-
-// 			inputs[0]->derive(ans, t, tf);
-// 		}
-// 	}
-// }
-
-// double Softmax::deriveOperation1(vector<double>& a){
-// 	return a[0] * a[1];
-// }
+string Softmax::describe(){
+	return name + "(" + inputs[0]->describe() + ", " + to_string(dimention) + ")";
+}
 
 
 void TanH::getValue(){

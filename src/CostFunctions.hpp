@@ -32,18 +32,23 @@ public:
 	string describe();
 };
 
-// class CrossEntropySoftmax: public Node{
-// public:
-// 	int dimention;
-// 	int meanDimention;
-// 	vector<NumObject> softmaxMemo;
+class CrossEntropySoftmax: public Node{
+public:
+	cl::Buffer softmaxMemo;
+	cl::Buffer resedue;
+	int dimention;
+	int meanDimention;
+	int GROUP_SIZE;
+	int preSum;
+	int globalSize;
+	int blocksWide;
 
-// 	CrossEntropySoftmax(Node* hypothesis, Node* y, int dimentionVal = -1, int meanDimentionVal = 0);
-// 	NumObject getValue(int t = 0, int tf = 0);
-// 	double operation1(vector<double>& a);
-// 	void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	double deriveOperation1(vector<double>& a);
-// 	string describe();
-// };
+	CrossEntropySoftmax(Node* hypothesis, Node* y, int dimentionVal = -1, int meanDimentionVal = 0);
+	void getDimentions();
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+	string describe();
+};
 
 #endif

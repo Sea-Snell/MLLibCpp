@@ -274,7 +274,7 @@ void kernel trans(constant const int* ADim, global const float* A, global float*
 }
 
 void kernel max_(global const float* A, global float* B, global int* Idx, const int dimentionSize, const int preSum){
-	float highVal = FLT_MIN;
+	float highVal = -FLT_MAX;
 	float currentVal = 0.0;
 	int highIdx = 0;
 	for (int i = 0; i < dimentionSize; i++){
@@ -336,16 +336,18 @@ void kernel meanSquared(constant const int* hypothesisDims, global const float* 
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 
-	diffSquaredResedue[groupId] = diffSquared[0];
+	if (localId == 0){
+		diffSquaredResedue[groupId] = diffSquared[0];
+	}
 
 	barrier(CLK_GLOBAL_MEM_FENCE);
 
 	if (globalId == 0){
-		float total2 = 0.0;
-		for (int i = 0; i < numGroups; i++){
-			total2 += diffSquaredResedue[i];
+		float total = diffSquaredResedue[0];
+		for (int i = 1; i < numGroups; i++){
+			total += diffSquaredResedue[i];
 		}
-		result[0] = total2 / dimentionSize;
+		result[0] = total / dimentionSize;
 	}
 }
 
@@ -381,16 +383,159 @@ void kernel crossEntropy(constant const int* hypothesisDims, global const float*
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 
-	crossResultResedue[groupId] = crossResult[0];
+	if (localId == 0){
+		crossResultResedue[groupId] = crossResult[0];
+	}
 
 	barrier(CLK_GLOBAL_MEM_FENCE);
 
 	if (globalId == 0){
-		float total2 = 0.0;
-		for (int i = 0; i < numGroups; i++){
-			total2 += crossResultResedue[i];
+		float total = crossResultResedue[0];
+		for (int i = 1; i < numGroups; i++){
+			total += crossResultResedue[i];
 		}
-		result[0] = total2 / dimentionSize;
+		result[0] = total / dimentionSize;
+	}
+}
+
+void kernel crossEntropySoftmax(global const float* hypothesis, global const float* y, global float* resedue, global float* softmaxMemo, global float* result, const int dimentionSize, const int meanDimentionSize, const int preSum, const int blocksWide){
+	local float localData [128];
+	local float localResedue;
+
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int groupId = get_group_id(0);
+	const int numGroups = get_num_groups(0);
+
+	float maxVal;
+	float hypothesisVal;
+
+	const int postIdx = groupId / (blocksWide * preSum);
+	const int dimIdx = (groupId % blocksWide) * localSize + localId;
+	const int preIdx = (groupId / blocksWide) % preSum;
+	const int finalIdx = postIdx * (preSum * dimentionSize) + dimIdx * preSum + preIdx;
+
+	if (dimIdx < dimentionSize){
+		hypothesisVal = hypothesis[finalIdx];
+		localData[localId] = hypothesisVal;
+	}
+	else{
+		hypothesisVal = 0.0;
+		localData[localId] = -FLT_MAX;
+	}
+
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	int currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			localData[localId] = max(localData[localId], localData[localId + currentSize]);
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (localId == 0){
+		resedue[groupId] = localData[0];
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (dimIdx == 0){
+		float dimMaxVal = resedue[groupId];
+		for (int i = 1; i < blocksWide; i++){
+			dimMaxVal = max(dimMaxVal, resedue[groupId + i]);
+		}
+		resedue[groupId] = dimMaxVal;
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (localId == 0){
+		localResedue = resedue[(groupId / blocksWide) * blocksWide];
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	maxVal = localResedue;
+
+	if (dimIdx < dimentionSize){
+		localData[localId] = exp(hypothesisVal - maxVal);
+	}
+	else{
+		localData[localId] = 0.0;
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			localData[localId] += localData[localId + currentSize];
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (localId == 0){
+		resedue[groupId] = localData[0];
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (dimIdx == 0){
+		float dimTotalVal = resedue[groupId];
+		for (int i = 1; i < blocksWide; i++){
+			dimTotalVal += resedue[groupId + i];
+		}
+		resedue[groupId] = maxVal + log(dimTotalVal);
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (localId == 0){
+		localResedue = resedue[(groupId / blocksWide) * blocksWide];
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	if (dimIdx < dimentionSize){
+		float diff = hypothesisVal - localResedue;
+		softmaxMemo[finalIdx] = exp(diff);
+		localData[localId] = diff * y[finalIdx];
+	}
+	else{
+		localData[localId] = 0.0;
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			localData[localId] += localData[localId + currentSize];
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (localId == 0){
+		resedue[groupId] = localData[0];
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (globalId == 0){
+		float total = resedue[0];
+		for (int i = 1; i < numGroups; i++){
+			total += resedue[i];
+		}
+		result[0] = -total / meanDimentionSize;
 	}
 }
 
@@ -432,7 +577,112 @@ void kernel softsign(global const float* A, global float* B){
 	B[get_global_id(0)] = AVal / (1 + fabs(AVal));
 }
 
+void kernel softmax(global const float* A, global float* resedue, global float* B, const int dimentionSize, const int preSum, const int blocksWide){
+	local float localData [128];
+	local float localResedue;
 
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int groupId = get_group_id(0);
+
+	float maxVal;
+	float AVal;
+
+	const int postIdx = groupId / (blocksWide * preSum);
+	const int dimIdx = (groupId % blocksWide) * localSize + localId;
+	const int preIdx = (groupId / blocksWide) % preSum;
+	const int finalIdx = postIdx * (preSum * dimentionSize) + dimIdx * preSum + preIdx;
+
+	if (dimIdx < dimentionSize){
+		AVal = A[finalIdx];
+		localData[localId] = AVal;
+	}
+	else{
+		AVal = 0.0;
+		localData[localId] = -FLT_MAX;
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	int currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			localData[localId] = max(localData[localId], localData[localId + currentSize]);
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (localId == 0){
+		resedue[groupId] = localData[0];
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (dimIdx == 0){
+		float dimMaxVal = resedue[groupId];
+		for (int i = 1; i < blocksWide; i++){
+			dimMaxVal = max(dimMaxVal, resedue[groupId + i]);
+		}
+		resedue[groupId] = dimMaxVal;
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (localId == 0){
+		localResedue = resedue[(groupId / blocksWide) * blocksWide];
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	maxVal = localResedue;
+
+	if (dimIdx < dimentionSize){
+		localData[localId] = exp(AVal - maxVal);
+	}
+	else{
+		localData[localId] = 0.0;
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			localData[localId] += localData[localId + currentSize];
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (localId == 0){
+		resedue[groupId] = localData[0];
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (dimIdx == 0){
+		float dimTotalVal = resedue[groupId];
+		for (int i = 1; i < blocksWide; i++){
+			dimTotalVal += resedue[groupId + i];
+		}
+		resedue[groupId] = maxVal + log(dimTotalVal);
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (localId == 0){
+		localResedue = resedue[(groupId / blocksWide) * blocksWide];
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	if (dimIdx < dimentionSize){
+		B[finalIdx] = exp(AVal - localResedue);
+	}
+}
 
 
 
@@ -883,6 +1133,10 @@ void kernel crossEntropyDerivative(constant const float* seed, global const floa
 	out[get_global_id(0)] = seed[0] * ((float)(-1.0) / ((float)dimentionSize)) * ((y[get_global_id(0)] - hypVal) / (hypVal * ((float)(1.0) - hypVal)));
 }
 
+void kernel crossEntropySoftmaxDerivative(constant const float* seed, global const float* softmaxMemo, global const float* y, global float* out, const int meanDimentionSize){
+	out[get_global_id(0)] = seed[0] * ((float)(1.0) / ((float)meanDimentionSize)) * (softmaxMemo[get_global_id(0)] - y[get_global_id(0)]);
+}
+
 void kernel sigmoidDerivative(global const float* C, constant const int* seedDim, global const float* seed, global float* out){
 	float CVal = C[get_global_id(0)];
 	out[get_global_id(0)] = (CVal * ((float)(1.0) - CVal)) * seed[get_global_id(0) % seedDim[0]];
@@ -921,6 +1175,79 @@ void kernel softsignDerivative(global const float* A, constant const int* seedDi
 	int pt1 = 1.0 + fabs(A[get_global_id(0)]);
 	out[get_global_id(0)] = (1.0 / (pt1 * pt1)) * seed[get_global_id(0) % seedDim[0]];
 }
+
+void kernel softmaxDerivative(global const float* C, constant const int* seedDim, global const float* seed, global float* resedue, global float* out, const int dimentionSize, const int preSum, const int blocksWide){
+	local float localData [128];
+	local float localResedue;
+
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int groupId = get_group_id(0);
+
+	float CVal;
+	float seedVal;
+
+	const int postIdx = groupId / (blocksWide * preSum);
+	const int dimIdx = (groupId % blocksWide) * localSize + localId;
+	const int preIdx = (groupId / blocksWide) % preSum;
+	const int finalIdx = postIdx * (preSum * dimentionSize) + dimIdx * preSum + preIdx;
+
+	if (dimIdx < dimentionSize){
+		CVal = C[finalIdx];
+		seedVal = seed[finalIdx % seedDim[0]];
+	}
+	else{
+		CVal = 0.0;
+		seedVal = 0.0;
+	}
+
+	localData[localId] = CVal * seedVal;
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	int currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			localData[localId] += localData[localId + currentSize];
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (localId == 0){
+		resedue[groupId] = localData[0];
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (dimIdx == 0){
+		float dimTotalVal = resedue[groupId];
+		for (int i = 1; i < blocksWide; i++){
+			dimTotalVal += resedue[groupId + i];
+		}
+		resedue[groupId] = dimTotalVal;
+	}
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (localId == 0){
+		localResedue = resedue[(groupId / blocksWide) * blocksWide];
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	if (dimIdx < dimentionSize){
+		out[finalIdx] = CVal * (seedVal - localResedue);
+	}
+}
+
+
+
+
+
+
+
 
 
 

@@ -34,17 +34,22 @@ public:
 	void derive();
 };
 
-// class Softmax: public Node{
-// public:
-// 	int dimention;
-
-// 	Softmax(Node* a, int dimentionVal = -1);
+class Softmax: public Node{
+public:
+	int dimention;
+	int preSum;
+	int GROUP_SIZE;
+	int globalSize;
+	int blocksWide;
+	cl::Buffer resedue;
+	Softmax(Node* a, int dimentionVal = -1);
 	
-// 	NumObject getValue(int t = 0, int tf = 0);
-// 	double operation1(vector<double>& a);
-// 	void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	double deriveOperation1(vector<double>& a);
-// };
+	void getDimentions();
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+	string describe();
+};
 
 class TanH: public BasicFunction{
 public:

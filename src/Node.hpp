@@ -46,12 +46,14 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquared;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropy;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int> crossEntropySoftmax;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> sigmoid;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> reLU;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> leakyReLU;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> gaussian;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> tanH;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> softsign;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmax;
 
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1;
@@ -83,12 +85,14 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropyDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropySoftmaxDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> sigmoidDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> reLUDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> leakyReLUDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> gaussianDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanHDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> softsignDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivative;
 
 
 void initialize();
