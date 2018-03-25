@@ -20,7 +20,15 @@ void linearReg();
 
 int main(){
 
-	MNISTFFNN();
+	// MNISTFFNN();
+
+	Variable&& test1 = Variable(NumObject(vector<double> {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, vector<int> {2, 3}));
+	Constant&& test2 = Constant(NumObject(vector<double> {0.0, 1.0, 0.0, 1.0, 0.0, 0.0}, vector<int> {2, 3}));
+
+	Node* expression = new CrossEntropySoftmax(&test1, &test2);
+
+	cout << derive(expression).describe() << endl;
+	cout << test1.derivative.describe() << endl;
 
 	return 0;
 }
@@ -449,19 +457,19 @@ void WordRNN(bool randomize){
 void MNISTFFNN(){
 	Constant&& xData = Constant(NumObject(), "x");
 	Constant&& yData = Constant(NumObject(), "y");
-	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 10}, 0.0, 1.0 / sqrt(784.0)), "w1");
-	// Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
-	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias1");
-	// Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
+	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 40}, 0.0, 1.0 / sqrt(784.0)), "w1");
+	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
+	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{40}, 0.0, 1.0), "bias1");
+	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
 
-	Node* layer1 = new Sigmoid(new Add(new MatMul(&xData, &weights1), &bias1));
-	// Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
+	Node* layer1 = new ReLU(new Add(new MatMul(&xData, &weights1), &bias1));
+	Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
 
-	Node* cost = new CrossEntropy(layer1, &yData);
+	Node* cost = new CrossEntropySoftmax(layer2, &yData);
 
 	GradientDescent trainer = GradientDescent(0.1);
 
-	vector<Variable*> variables = {&weights1, &bias1};
+	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2};
 
 	vector<NumObject> trainData = getTrain(100);
 	xData.value = trainData[0];
