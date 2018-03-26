@@ -27,21 +27,27 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, int, int> sum_(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int, int, int> sum_Pt1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int> sum_Pt2(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_Pt2(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquared(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropy(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int> crossEntropySoftmax(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> meanSquaredPt1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> crossEntropyPt1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> crossEntropySoftmaxPt5(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int, int> meanFullResedue(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer> sigmoid(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer> reLU(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer> leakyReLU(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer> gaussian(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer> tanH(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer> softsign(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmax(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int, int, int> softmaxPt1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int> softmaxPt2(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxPt3(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int> softmaxPt4(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxPt5(cl::Kernel(program, ""));
 
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1(cl::Kernel(program, ""));
@@ -63,12 +69,12 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative1(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2Derivative0(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> matMul1x2Derivative1(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative0(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> sumDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, int> meanDerivativeSmallSeed(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> maxDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivative(cl::Kernel(program, ""));
@@ -80,7 +86,9 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> leakyReLUDerivat
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> gaussianDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanHDerivative(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> softsignDerivative(cl::Kernel(program, ""));
-cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivative(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivativePt1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int> softmaxDerivativePt2(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivativePt3(cl::Kernel(program, ""));
 
 void initialize(){
 	vector<cl::Platform> allPlatforms;
@@ -148,21 +156,27 @@ void initialize(){
 	matMul2x1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x1"));
 	matMul1x2 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x2"));
 	matMul1x1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x1"));
-	sum_ = cl::make_kernel<cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "sum_"));
-	mean_ = cl::make_kernel<cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "mean_"));
 	trans = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "trans"));
+	sum_Pt1 = cl::make_kernel<cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "sum_Pt1"));
+	sum_Pt2 = cl::make_kernel<cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "sum_Pt2"));
+	mean_Pt2 = cl::make_kernel<cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "mean_Pt2"));
 	max_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "max_"));
 	min_ = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "min_"));
-	meanSquared = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "meanSquared"));
-	crossEntropy = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "crossEntropy"));
-	crossEntropySoftmax = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int>(cl::Kernel(program, "crossEntropySoftmax"));
+	meanSquaredPt1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "meanSquaredPt1"));
+	crossEntropyPt1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "crossEntropyPt1"));
+	crossEntropySoftmaxPt5 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "crossEntropySoftmaxPt5"));
+	meanFullResedue = cl::make_kernel<cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "meanFullResedue"));
 	sigmoid = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "sigmoid"));
 	reLU = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "reLU"));
 	leakyReLU = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "leakyReLU"));
 	gaussian = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "gaussian"));
 	tanH = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "tanH"));
 	softsign = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "softsign"));
-	softmax = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmax"));
+	softmaxPt1 = cl::make_kernel<cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmaxPt1"));
+	softmaxPt2 = cl::make_kernel<cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "softmaxPt2"));
+	softmaxPt3 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmaxPt3"));
+	softmaxPt4 = cl::make_kernel<cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "softmaxPt4"));
+	softmaxPt5 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmaxPt5"));
 
 	addDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "addDerivative"));
 	subtractDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "subtractDerivative1"));
@@ -184,12 +198,12 @@ void initialize(){
 	matMul2x1Derivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul2x1Derivative1"));
 	matMul1x2Derivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x2Derivative0"));
 	matMul1x2Derivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "matMul1x2Derivative1"));
-	matMul1x1Derivative0 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x1Derivative0"));
+	matMul1x1Derivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "matMul1x1Derivative"));
+	transDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "transDerivative1"));
+	transDerivative2 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "transDerivative2"));
 	sumDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "sumDerivative"));
 	meanDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "meanDerivative"));
 	meanDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "meanDerivativeSmallSeed"));
-	transDerivative1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "transDerivative1"));
-	transDerivative2 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "transDerivative2"));
 	maxDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int>(cl::Kernel(program, "maxDerivative"));
 	maxDerivativeSmallSeed = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "maxDerivativeSmallSeed"));
 	meanSquaredDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "meanSquaredDerivative"));
@@ -201,7 +215,9 @@ void initialize(){
 	gaussianDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "gaussianDerivative"));
 	tanHDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "tanHDerivative"));
 	softsignDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "softsignDerivative"));
-	softmaxDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmaxDerivative"));
+	softmaxDerivativePt1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmaxDerivativePt1"));
+	softmaxDerivativePt2 = cl::make_kernel<cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "softmaxDerivativePt2"));
+	softmaxDerivativePt3 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmaxDerivativePt3"));
 }
 
 NumObject::NumObject(){}

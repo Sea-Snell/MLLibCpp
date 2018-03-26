@@ -39,21 +39,27 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffe
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> sum_;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> trans;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int, int> sum_Pt1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int> sum_Pt2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> mean_Pt2;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> max_;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> min_;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquared;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> crossEntropy;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int> crossEntropySoftmax;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> meanSquaredPt1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> crossEntropyPt1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> crossEntropySoftmaxPt5;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int> meanFullResedue;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> sigmoid;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> reLU;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> leakyReLU;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> gaussian;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> tanH;
 extern cl::make_kernel<cl::Buffer, cl::Buffer> softsign;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmax;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int, int, int> softmaxPt1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int> softmaxPt2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxPt3;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int> softmaxPt4;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxPt5;
 
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> addDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> subtractDerivative1;
@@ -75,12 +81,12 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffe
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul2x1Derivative1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> matMul1x2Derivative0;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int> matMul1x2Derivative1;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative0;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> matMul1x1Derivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> sumDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int, int> meanDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, int> meanDerivativeSmallSeed;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative1;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> transDerivative2;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int> maxDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> maxDerivativeSmallSeed;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, int> meanSquaredDerivative;
@@ -92,7 +98,9 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> leakyReLU
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> gaussianDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> tanHDerivative;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> softsignDerivative;
-extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivative;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivativePt1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int> softmaxDerivativePt2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivativePt3;
 
 
 void initialize();
@@ -148,13 +156,12 @@ public:
 	virtual void getValue() = 0;
 	virtual void getDimentions() = 0;
 	virtual void deriveDimentions(GPUDimentions* tempSeed) = 0;
+	virtual void derive() = 0;
 	virtual string describe();
 	void clean();
 
 	void seedDimAdd(GPUDimentions* tempSeed);
 	GPUDimentions getMaxDimentions(vector<GPUDimentions*> dimentionSet);
-
-	virtual void derive() = 0;
 
 	// Node* operator+(Node& param);
 	// Node* operator-(Node& param);
@@ -185,7 +192,7 @@ class BasicOperator: public Node{
 public:
 	BasicOperator(Node* a, Node* b);
 	void getDimentions();
-	virtual string describe();
+	string describe();
 };
 
 class BasicFunction: public Node{

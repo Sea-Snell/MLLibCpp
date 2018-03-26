@@ -18,44 +18,9 @@ void linearReg();
 int main(){
 
 	initialize();
-	vector<float> tempVec1 = {};
-	vector<float> tempVec2 = {};
-	for (int i = 0; i < 1000; i++){
-		tempVec1.push_back((float)(i));
-		if ((i / 10) % 10 == i % 10){
-			tempVec2.push_back(1.0);
-		}
-		else{
-			tempVec2.push_back(0.0);
-		}
-	}
-	Variable&& test1 = Variable(NumObject(tempVec1, vector<int> {100, 10}));
-	Constant&& test2 = Constant(NumObject(tempVec2, vector<int> {100, 10}));
-
-	// Node* expression1 = new CrossEntropy(new Softmax(&test1), &test2);
-
-	// initalize(expression1);
-
-	// cout << getValue(expression1).describe() << endl;
-
-	// clearHistory(&test1);
-	// clearHistory(&test2);
-
-	CrossEntropySoftmax expression2 = CrossEntropySoftmax(&test1, &test2);
-
-	initalize(&expression2);
-
-	derive(&expression2);
-
-	cout << showValue(&expression2).describe() << endl;
-	cout << showSeed(&test1).describe() << endl;
-
-	// NumObject tempBuf = NumObject(vector<int> {2, 3}, 0.0);
-	// queue.enqueueReadBuffer(expression2.softmaxMemo, CL_TRUE, 0, sizeof(float) * 6, &tempBuf.values[0]);
-
-	// cout << tempBuf.describe() << endl;
+	
 	// linearReg();
-	// MNISTFFNN();
+	MNISTFFNN();
 
 	return 0;
 }

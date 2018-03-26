@@ -42,6 +42,8 @@ public:
 	int globalSize;
 	int blocksWide;
 	cl::Buffer resedue;
+	cl::Buffer resultResedue;
+	
 	Softmax(Node* a, int dimentionVal = -1);
 	
 	void getDimentions();

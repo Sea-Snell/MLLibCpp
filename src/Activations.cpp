@@ -103,7 +103,6 @@ Softmax::Softmax(Node* a, int dimentionVal){
 	a->outCount += 1;
 	name = "Softmax";
 	dimention = dimentionVal;
-	GROUP_SIZE = 128;
 }
 
 void Softmax::getDimentions(){
@@ -129,6 +128,7 @@ void Softmax::getDimentions(){
 		preSum *= resultDims.dimentions[i];
 	}
 
+	GROUP_SIZE = 128;
 	int dimSize = resultDims.dimentions[dimention] + (GROUP_SIZE - resultDims.dimentions[dimention] % GROUP_SIZE);
 	if (resultDims.dimentions[dimention] % GROUP_SIZE == 0){
 		dimSize -= GROUP_SIZE;
@@ -138,6 +138,7 @@ void Softmax::getDimentions(){
 
 	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
 	resedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * ((resultDims.size / resultDims.dimentions[dimention]) * blocksWide));
+	resultResedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * (resultDims.size / resultDims.dimentions[dimention]));
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -147,7 +148,11 @@ void Softmax::getValue(){
 		return;
 	}
 	inputs[0]->getValue();
-	softmax(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resedue, result, resultDims.dimentions[dimention], preSum, blocksWide);
+	softmaxPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resedue, resultDims.dimentions[dimention], preSum, blocksWide);
+	softmaxPt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue, resultResedue, blocksWide);
+	softmaxPt3(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resultResedue, resedue, resultDims.dimentions[dimention], preSum, blocksWide);
+	softmaxPt4(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue, resultResedue, blocksWide);
+	softmaxPt5(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resultResedue, result, resultDims.dimentions[dimention], preSum, blocksWide);
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -169,7 +174,9 @@ void Softmax::derive(){
 			if (inputs[0]->getCount == 0){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			softmaxDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), result, seedDims.dimBuf, seed, resedue, out[0], resultDims.dimentions[dimention], preSum, blocksWide);
+			softmaxDerivativePt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), result, seedDims.dimBuf, seed, resedue, resultDims.dimentions[dimention], preSum, blocksWide);
+			softmaxDerivativePt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue, resultResedue, blocksWide);
+			softmaxDerivativePt3(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), result, seedDims.dimBuf, seed, resultResedue, out[0], resultDims.dimentions[dimention], preSum, blocksWide);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}

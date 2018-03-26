@@ -30,16 +30,41 @@ void MatMul::getDimentions(){
 		resultDims.rank = 1;
 		resultDims.size = inputs[1]->resultDims.dimentions[1];
 		resultDims.dimentions = {inputs[1]->resultDims.dimentions[1]};
+
+		GROUP_SIZE = 16;
+		globalSize = resultDims.size + (GROUP_SIZE - resultDims.size % GROUP_SIZE);
+		if (resultDims.size % GROUP_SIZE == 0){
+			globalSize -= GROUP_SIZE;
+		}
 	}
 	else if (inputs[1]->resultDims.rank == 1){
 		resultDims.rank = 1;
 		resultDims.size = inputs[0]->resultDims.dimentions[0];
 		resultDims.dimentions = {inputs[0]->resultDims.dimentions[0]};
+
+		GROUP_SIZE = 16;
+		globalSize = resultDims.size + (GROUP_SIZE - resultDims.size % GROUP_SIZE);
+		if (resultDims.size % GROUP_SIZE == 0){
+			globalSize -= GROUP_SIZE;
+		}
 	}
 	else{
 		resultDims.rank = 2;
 		resultDims.size = inputs[0]->resultDims.dimentions[0] * inputs[1]->resultDims.dimentions[1];
 		resultDims.dimentions = {inputs[0]->resultDims.dimentions[0], inputs[1]->resultDims.dimentions[1]};
+
+		GROUP_SIZE = 1024;
+		blockSide = 32;
+		workPerBlockSideSquared = 16;
+		heightSize = resultDims.dimentions[0] + (blockSide - resultDims.dimentions[0] % blockSide);
+		if (resultDims.dimentions[0] % blockSide == 0){
+			heightSize -= blockSide;
+		}
+		widthSize = resultDims.dimentions[1] + (blockSide - resultDims.dimentions[1] % blockSide);
+		if (resultDims.dimentions[1] % blockSide == 0){
+			widthSize -= blockSide;
+		}
+		blocksWide = widthSize / blockSide;
 	}
 
 	resultDims.setBuf();
@@ -60,34 +85,12 @@ void MatMul::getValue(){
 		matMul1x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->result, result);
 	}
 	else if (inputs[0]->resultDims.rank == 1){
-		int GROUP_SIZE = 16;
-		int globalSize = resultDims.size + (GROUP_SIZE - resultDims.size % GROUP_SIZE);
-		if (resultDims.size % GROUP_SIZE == 0){
-			globalSize -= GROUP_SIZE;
-		}
 		matMul1x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
 	}
 	else if (inputs[1]->resultDims.rank == 1){
-		int GROUP_SIZE = 16;
-		int globalSize = resultDims.size + (GROUP_SIZE - resultDims.size % GROUP_SIZE);
-		if (resultDims.size % GROUP_SIZE == 0){
-			globalSize -= GROUP_SIZE;
-		}
 		matMul2x1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->result, result);
 	}
 	else{
-		int GROUP_SIZE = 1024;
-		int blockSide = 32;
-		int workPerBlockSideSquared = 16;
-		int heightSize = resultDims.dimentions[0] + (blockSide - resultDims.dimentions[0] % blockSide);
-		if (resultDims.dimentions[0] % blockSide == 0){
-			heightSize -= blockSide;
-		}
-		int widthSize = resultDims.dimentions[1] + (blockSide - resultDims.dimentions[1] % blockSide);
-		if (resultDims.dimentions[1] % blockSide == 0){
-			widthSize -= blockSide;
-		}
-		int blocksWide = widthSize / blockSide;
 		matMul2x2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange((widthSize * heightSize) / workPerBlockSideSquared), cl::NDRange(GROUP_SIZE / workPerBlockSideSquared)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result, blocksWide);
 	}
 	getCount = (getCount + 1) % outCount;
@@ -102,6 +105,73 @@ void MatMul::deriveDimentions(GPUDimentions* tempSeed){
 		outDims.push_back(inputs[1]->resultDims);
 		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
 		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[1].size));
+
+		if (inputs[0]->resultDims.rank == 1){
+			GROUP_SIZE_DERIVATIVE_0 = 16;
+			globalSizeDerivative0 = outDims[0].size + (GROUP_SIZE_DERIVATIVE_0 - outDims[0].size % GROUP_SIZE_DERIVATIVE_0);
+			if (outDims[0].size % GROUP_SIZE_DERIVATIVE_0 == 0){
+				globalSizeDerivative0 -= GROUP_SIZE_DERIVATIVE_0;
+			}
+
+			GROUP_SIZE_DERIVATIVE_1 = 1024;
+			blockSideDerivative1 = 32;
+			heightSizeDerivative1 = outDims[1].dimentions[0] + (blockSideDerivative1 - outDims[1].dimentions[0] % blockSideDerivative1);
+			if (outDims[1].dimentions[0] % blockSideDerivative1 == 0){
+				heightSizeDerivative1 -= blockSideDerivative1;
+			}
+			widthSizeDerivative1 = outDims[1].dimentions[1] + (blockSideDerivative1 - outDims[1].dimentions[1] % blockSideDerivative1);
+			if (outDims[1].dimentions[1] % blockSideDerivative1 == 0){
+				widthSizeDerivative1 -= blockSideDerivative1;
+			}
+			blocksWideDerivative1 = widthSizeDerivative1 / blockSideDerivative1;
+		}
+		else if (inputs[1]->resultDims.rank == 1){
+			GROUP_SIZE_DERIVATIVE_0 = 1024;
+			blockSideDerivative0 = 32;
+			heightSizeDerivative0 = outDims[0].dimentions[0] + (blockSideDerivative0 - outDims[0].dimentions[0] % blockSideDerivative0);
+			if (outDims[0].dimentions[0] % blockSideDerivative0 == 0){
+				heightSizeDerivative0 -= blockSideDerivative0;
+			}
+			widthSizeDerivative0 = outDims[0].dimentions[1] + (blockSideDerivative0 - outDims[0].dimentions[1] % blockSideDerivative0);
+			if (outDims[0].dimentions[1] % blockSideDerivative0 == 0){
+				widthSizeDerivative0 -= blockSideDerivative0;
+			}
+			blocksWideDerivative0 = widthSizeDerivative0 / blockSideDerivative0;
+
+			GROUP_SIZE_DERIVATIVE_1 = 16;
+			globalSizeDerivative1 = outDims[1].size + (GROUP_SIZE_DERIVATIVE_1 - outDims[1].size % GROUP_SIZE_DERIVATIVE_1);
+			if (outDims[1].size % GROUP_SIZE_DERIVATIVE_1 == 0){
+				globalSizeDerivative1 -= GROUP_SIZE_DERIVATIVE_1;
+			}
+		}
+		else if (inputs[0]->resultDims.rank == 2 && inputs[1]->resultDims.rank == 2){
+			GROUP_SIZE_DERIVATIVE_0 = 1024;
+			blockSideDerivative0 = 32;
+			workPerBlockSideSquaredDerivative0 = 16;
+			heightSizeDerivative0 = outDims[0].dimentions[0] + (blockSideDerivative0 - outDims[0].dimentions[0] % blockSideDerivative0);
+			if (outDims[0].dimentions[0] % blockSideDerivative0 == 0){
+				heightSizeDerivative0 -= blockSideDerivative0;
+			}
+			widthSizeDerivative0 = outDims[0].dimentions[1] + (blockSideDerivative0 - outDims[0].dimentions[1] % blockSideDerivative0);
+			if (outDims[0].dimentions[1] % blockSideDerivative0 == 0){
+				widthSizeDerivative0 -= blockSideDerivative0;
+			}
+			blocksWideDerivative0 = widthSizeDerivative0 / blockSideDerivative0;
+
+			GROUP_SIZE_DERIVATIVE_1 = 1024;
+			blockSideDerivative1 = 32;
+			workPerBlockSideSquaredDerivative1 = 16;
+			heightSizeDerivative1 = outDims[1].dimentions[0] + (blockSideDerivative1 - outDims[1].dimentions[0] % blockSideDerivative1);
+			if (outDims[1].dimentions[0] % blockSideDerivative1 == 0){
+				heightSizeDerivative1 -= blockSideDerivative1;
+			}
+			widthSizeDerivative1 = outDims[1].dimentions[1] + (blockSideDerivative1 - outDims[1].dimentions[1] % blockSideDerivative1);
+			if (outDims[1].dimentions[1] % blockSideDerivative1 == 0){
+				widthSizeDerivative1 -= blockSideDerivative1;
+			}
+			blocksWideDerivative1 = widthSizeDerivative1 / blockSideDerivative1;
+		}
+
 		inputs[0]->deriveDimentions(&outDims[0]);
 		inputs[1]->deriveDimentions(&outDims[1]);
 	}
@@ -115,44 +185,16 @@ void MatMul::derive(){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
 			if (inputs[0]->resultDims.rank == 1 && inputs[1]->resultDims.rank == 1){
-				matMul1x1Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->result, seed, out[0]);
+				matMul1x1Derivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->result, seed, out[0]);
 			}
 			else if (inputs[0]->resultDims.rank == 1){
-				int GROUP_SIZE = 16;
-				int globalSize = outDims[0].size + (GROUP_SIZE - outDims[0].size % GROUP_SIZE);
-				if (outDims[0].size % GROUP_SIZE == 0){
-					globalSize -= GROUP_SIZE;
-				}
-				matMul1x2Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
+				matMul1x2Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSizeDerivative0), cl::NDRange(GROUP_SIZE_DERIVATIVE_0)), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
 			}
 			else if (inputs[1]->resultDims.rank == 1){
-				int GROUP_SIZE = 1024;
-				int blockSide = 32;
-				int heightSize = outDims[0].dimentions[0] + (blockSide - outDims[0].dimentions[0] % blockSide);
-				if (outDims[0].dimentions[0] % blockSide == 0){
-					heightSize -= blockSide;
-				}
-				int widthSize = outDims[0].dimentions[1] + (blockSide - outDims[0].dimentions[1] % blockSide);
-				if (outDims[0].dimentions[1] % blockSide == 0){
-					widthSize -= blockSide;
-				}
-				int blocksWide = widthSize / blockSide;
-				matMul2x1Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(widthSize * heightSize), cl::NDRange(GROUP_SIZE)), inputs[1]->result, seedDims.dimBuf, seed, outDims[0].dimBuf, out[0], blocksWide);
+				matMul2x1Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(widthSizeDerivative0 * heightSizeDerivative0), cl::NDRange(GROUP_SIZE_DERIVATIVE_0)), inputs[1]->result, seedDims.dimBuf, seed, outDims[0].dimBuf, out[0], blocksWideDerivative0);
 			}
 			else{
-				int GROUP_SIZE = 1024;
-				int blockSide = 32;
-				int workPerBlockSideSquared = 16;
-				int heightSize = outDims[0].dimentions[0] + (blockSide - outDims[0].dimentions[0] % blockSide);
-				if (outDims[0].dimentions[0] % blockSide == 0){
-					heightSize -= blockSide;
-				}
-				int widthSize = outDims[0].dimentions[1] + (blockSide - outDims[0].dimentions[1] % blockSide);
-				if (outDims[0].dimentions[1] % blockSide == 0){
-					widthSize -= blockSide;
-				}
-				int blocksWide = widthSize / blockSide;
-				matMul2x2Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange((widthSize * heightSize) / workPerBlockSideSquared), cl::NDRange(GROUP_SIZE / workPerBlockSideSquared)), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, outDims[0].dimBuf, out[0], blocksWide);
+				matMul2x2Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange((widthSizeDerivative0 * heightSizeDerivative0) / workPerBlockSideSquaredDerivative0), cl::NDRange(GROUP_SIZE_DERIVATIVE_0 / workPerBlockSideSquaredDerivative0)), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, outDims[0].dimBuf, out[0], blocksWideDerivative0);
 			}
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
@@ -162,180 +204,22 @@ void MatMul::derive(){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), inputs[1]->seed);
 			}
 			if (inputs[0]->resultDims.rank == 1 && inputs[1]->resultDims.rank == 1){
-				matMul1x1Derivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->result, seed, out[1]);
+				matMul1x1Derivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->result, seed, out[1]);
 			}
 			else if (inputs[0]->resultDims.rank == 1){
-				int GROUP_SIZE = 1024;
-				int blockSide = 32;
-				int heightSize = outDims[1].dimentions[0] + (blockSide - outDims[1].dimentions[0] % blockSide);
-				if (outDims[1].dimentions[0] % blockSide == 0){
-					heightSize -= blockSide;
-				}
-				int widthSize = outDims[1].dimentions[1] + (blockSide - outDims[1].dimentions[1] % blockSide);
-				if (outDims[1].dimentions[1] % blockSide == 0){
-					widthSize -= blockSide;
-				}
-				int blocksWide = widthSize / blockSide;
-				matMul1x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(widthSize * heightSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1], blocksWide);
+				matMul1x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(widthSizeDerivative1 * heightSizeDerivative1), cl::NDRange(GROUP_SIZE_DERIVATIVE_1)), inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1], blocksWideDerivative1);
 			}
 			else if (inputs[1]->resultDims.rank == 1){
-				int GROUP_SIZE = 16;
-				int globalSize = outDims[1].size + (GROUP_SIZE - outDims[1].size % GROUP_SIZE);
-				if (outDims[1].size % GROUP_SIZE == 0){
-					globalSize -= GROUP_SIZE;
-				}
-				matMul2x1Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[1]);
+				matMul2x1Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSizeDerivative1), cl::NDRange(GROUP_SIZE_DERIVATIVE_1)), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[1]);
 			}
 			else{
-				int GROUP_SIZE = 1024;
-				int blockSide = 32;
-				int workPerBlockSideSquared = 16;
-				int heightSize = outDims[1].dimentions[0] + (blockSide - outDims[1].dimentions[0] % blockSide);
-				if (outDims[1].dimentions[0] % blockSide == 0){
-					heightSize -= blockSide;
-				}
-				int widthSize = outDims[1].dimentions[1] + (blockSide - outDims[1].dimentions[1] % blockSide);
-				if (outDims[1].dimentions[1] % blockSide == 0){
-					widthSize -= blockSide;
-				}
-				int blocksWide = widthSize / blockSide;
-				matMul2x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange((widthSize * heightSize) / workPerBlockSideSquared), cl::NDRange(GROUP_SIZE / workPerBlockSideSquared)), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1], blocksWide);
+				matMul2x2Derivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange((widthSizeDerivative1 * heightSizeDerivative1) / workPerBlockSideSquaredDerivative1), cl::NDRange(GROUP_SIZE_DERIVATIVE_1 / workPerBlockSideSquaredDerivative1)), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, outDims[1].dimBuf, out[1], blocksWideDerivative1);
 			}
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), outDims[1].dimBuf, out[1], inputs[1]->seedDims.dimBuf, inputs[1]->seed);
 			inputs[1]->derive();
 		}
 	}
 }
-
-
-
-Sum::Sum(Node* a, int dimentionVal){
-	dimention = dimentionVal;
-	inputs.push_back(a);
-	a->outputs.push_back(this);
-	a->outCount += 1;
-	name = "Sum";
-}
-
-void Sum::getDimentions(){
-	if(getCount != 0){
-		getCount = (getCount + 1) % outCount;
-		return;
-	}
-
-	inputs[0]->getDimentions();
-
-	resultDims.rank = inputs[0]->resultDims.rank - 1;
-	resultDims.size = inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention];
-	resultDims.dimentions = {};
-	for (int i = 0; i < inputs[0]->resultDims.rank; i++){
-		if (i != dimention){
-			resultDims.dimentions.push_back(inputs[0]->resultDims.dimentions[i]);
-		}
-	}
-
-	preSum = 1;
-	for (int i = dimention + 1; i < inputs[0]->resultDims.rank; i++){
-		preSum *= inputs[0]->resultDims.dimentions[i];
-	}
-
-	resultDims.setBuf();
-
-	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
-	getCount = (getCount + 1) % outCount;
-}
-
-void Sum::getValue(){
-	if(getCount != 0){
-		getCount = (getCount + 1) % outCount;
-		return;
-	}
-	inputs[0]->getValue();
-	sum_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result, inputs[0]->resultDims.dimentions[dimention], preSum);
-	getCount = (getCount + 1) % outCount;
-}
-
-void Sum::deriveDimentions(GPUDimentions* tempSeed){
-	getCount = (getCount + 1) % outCount;
-	seedDimAdd(tempSeed);
-
-	if (getCount == 0){
-		if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
-			outDims.push_back(seedDims);
-		}
-		else{
-			GPUDimentions tempDims = GPUDimentions();
-			tempDims.rank = seedDims.rank + 1;
-			tempDims.size = seedDims.size * inputs[0]->resultDims.dimentions[dimention];
-			tempDims.dimentions = {};
-			for (int i = 0; i < tempDims.rank; i++){
-				tempDims.dimentions.push_back(inputs[0]->resultDims.dimentions[inputs[0]->resultDims.rank - tempDims.rank + i]);
-			}
-			tempDims.setBuf();
-			outDims.push_back(tempDims);
-		}
-		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
-		inputs[0]->deriveDimentions(&outDims[0]);
-	}
-}
-
-void Sum::derive(){
-	getCount = (getCount + 1) % outCount;
-	if (getCount == 0){
-		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
-				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
-			}
-			if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), seedDims.dimBuf, seed, inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
-			else{
-				sumDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, out[0], inputs[0]->resultDims.dimentions[dimention], preSum);
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
-			inputs[0]->derive();
-		}
-	}
-}
-
-string Sum::describe(){
-	return name + "(" + inputs[0]->describe() + ", " + to_string(dimention) + ")";
-}
-
-
-
-
-void Mean::getValue(){
-	if(getCount != 0){
-		getCount = (getCount + 1) % outCount;
-		return;
-	}
-	inputs[0]->getValue();
-	mean_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result, inputs[0]->resultDims.dimentions[dimention], preSum);
-	getCount = (getCount + 1) % outCount;
-}
-
-void Mean::derive(){
-	getCount = (getCount + 1) % outCount;
-	if (getCount == 0){
-		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
-				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
-			}
-			if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
-				meanDerivativeSmallSeed(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, out[0], inputs[0]->resultDims.dimentions[dimention]);
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
-			else{
-				meanDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, out[0], inputs[0]->resultDims.dimentions[dimention], preSum);
-				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
-			}
-			inputs[0]->derive();
-		}
-	}
-}
-
-
 
 
 Trans::Trans(Node* a){
@@ -413,6 +297,146 @@ void Trans::derive(){
 		}
 	}
 }
+
+
+
+Sum::Sum(Node* a, int dimentionVal){
+	dimention = dimentionVal;
+	inputs.push_back(a);
+	a->outputs.push_back(this);
+	a->outCount += 1;
+	name = "Sum";
+}
+
+void Sum::getDimentions(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+
+	inputs[0]->getDimentions();
+
+	resultDims.rank = inputs[0]->resultDims.rank - 1;
+	resultDims.size = inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention];
+	resultDims.dimentions = {};
+	for (int i = 0; i < inputs[0]->resultDims.rank; i++){
+		if (i != dimention){
+			resultDims.dimentions.push_back(inputs[0]->resultDims.dimentions[i]);
+		}
+	}
+
+	preSum = 1;
+	for (int i = dimention + 1; i < inputs[0]->resultDims.rank; i++){
+		preSum *= inputs[0]->resultDims.dimentions[i];
+	}
+
+	GROUP_SIZE = 128;
+	int dimSize = inputs[0]->resultDims.dimentions[dimention] + (GROUP_SIZE - inputs[0]->resultDims.dimentions[dimention] % GROUP_SIZE);
+	if (inputs[0]->resultDims.dimentions[dimention] % GROUP_SIZE == 0){
+		dimSize -= GROUP_SIZE;
+	}
+	blocksWide = dimSize / GROUP_SIZE;
+	globalSize = (inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]) * dimSize;
+
+	resultDims.setBuf();
+
+	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	resedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * ((inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]) * blocksWide));
+	getCount = (getCount + 1) % outCount;
+}
+
+void Sum::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	sum_Pt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resedue, inputs[0]->resultDims.dimentions[dimention], preSum, blocksWide);
+	sum_Pt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]), cl::NullRange), resedue, result, blocksWide);
+	getCount = (getCount + 1) % outCount;
+}
+
+void Sum::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
+			outDims.push_back(seedDims);
+		}
+		else{
+			GPUDimentions tempDims = GPUDimentions();
+			tempDims.rank = seedDims.rank + 1;
+			tempDims.size = seedDims.size * inputs[0]->resultDims.dimentions[dimention];
+			tempDims.dimentions = {};
+			for (int i = 0; i < tempDims.rank; i++){
+				tempDims.dimentions.push_back(inputs[0]->resultDims.dimentions[inputs[0]->resultDims.rank - tempDims.rank + i]);
+			}
+			tempDims.setBuf();
+			outDims.push_back(tempDims);
+		}
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
+
+void Sum::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
+				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), seedDims.dimBuf, seed, inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			}
+			else{
+				sumDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, out[0], inputs[0]->resultDims.dimentions[dimention], preSum);
+				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			}
+			inputs[0]->derive();
+		}
+	}
+}
+
+string Sum::describe(){
+	return name + "(" + inputs[0]->describe() + ", " + to_string(dimention) + ")";
+}
+
+
+
+
+void Mean::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+	inputs[0]->getValue();
+	sum_Pt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resedue, inputs[0]->resultDims.dimentions[dimention], preSum, blocksWide);
+	mean_Pt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]), cl::NullRange), resedue, result, inputs[0]->resultDims.dimentions[dimention], blocksWide);
+	getCount = (getCount + 1) % outCount;
+}
+
+void Mean::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			if (seedDims.rank < inputs[0]->resultDims.rank - dimention){
+				meanDerivativeSmallSeed(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, out[0], inputs[0]->resultDims.dimentions[dimention]);
+				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			}
+			else{
+				meanDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, out[0], inputs[0]->resultDims.dimentions[dimention], preSum);
+				explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			}
+			inputs[0]->derive();
+		}
+	}
+}
+
 
 
 Max::Max(Node* a, int dimentionVal){
