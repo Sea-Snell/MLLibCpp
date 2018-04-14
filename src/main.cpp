@@ -18,7 +18,7 @@ void linearReg();
 int main(){
 
 	initialize();
-	
+
 	// linearReg();
 	MNISTFFNN();
 
@@ -28,26 +28,36 @@ int main(){
 void MNISTFFNN(){
 	Constant&& xData = Constant(NumObject(), "x");
 	Constant&& yData = Constant(NumObject(), "y");
-	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 40}, 0.0, 1.0 / sqrt(784.0)), "w1");
-	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{40, 10}, 0.0, 1.0 / sqrt(40.0)), "w2");
-	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{40}, 0.0, 1.0), "bias1");
-	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias2");
+	Variable&& weights1 = Variable(gaussianRandomNums(vector<int>{784, 360}, 0.0, 1.0 / sqrt(784.0)), "w1");
+	Variable&& weights2 = Variable(gaussianRandomNums(vector<int>{360, 360}, 0.0, 1.0 / sqrt(360.0)), "w2");
+	Variable&& weights3 = Variable(gaussianRandomNums(vector<int>{360, 10}, 0.0, 1.0 / sqrt(360.0)), "w3");
+	Variable&& bias1 = Variable(gaussianRandomNums(vector<int>{360}, 0.0, 1.0), "bias1");
+	Variable&& bias2 = Variable(gaussianRandomNums(vector<int>{360}, 0.0, 1.0), "bias2");
+	Variable&& bias3 = Variable(gaussianRandomNums(vector<int>{10}, 0.0, 1.0), "bias3");
 
 	Node* layer1 = new ReLU(new Add(new MatMul(&xData, &weights1), &bias1));
-	Node* layer2 = new Add(new MatMul(layer1, &weights2), &bias2);
+	Node* layer2 = new ReLU(new Add(new MatMul(layer1, &weights2), &bias2));
+	Node* layer3 = new Add(new MatMul(layer2, &weights3), &bias3);
 
-	Node* cost = new CrossEntropySoftmax(layer2, &yData);
+	Node* cost = new CrossEntropySoftmax(layer3, &yData);
 
-	vector<NumObject> trainData = getTrain(100);
+	vector<NumObject> trainData = getTrain(1000);
 	xData.value = trainData[0];
 	yData.value = trainData[1];
 
 	initalize(cost);
 
-	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2};
+	vector<Variable*> variables = {&weights1, &bias1, &weights2, &bias2, &weights3, &bias3};
 
 	cout << "starting..." << endl;
-	for(int i = 0; i < 100001; i++){
+	for(int i = 0; i < 5001; i++){
+		vector<NumObject> trainData = getTrain(1000);
+		xData.value = trainData[0];
+		yData.value = trainData[1];
+
+		xData.updateDeviceVals();
+		yData.updateDeviceVals();
+
 		derive(cost);
 		gradientDescent(variables, 0.1);
 
@@ -56,30 +66,42 @@ void MNISTFFNN(){
 		}
 	}
 
-	cout << showValue(cost).describe() << endl;
+	vector<NumObject> testData = getTest(20000);
+	xData.value = testData[0];
+	yData.value = testData[1];
+	weights1.updateHostVals();
+	bias1.updateHostVals();
+	weights2.updateHostVals();
+	bias2.updateHostVals();
+	weights3.updateHostVals();
+	bias3.updateHostVals();
 
-	// vector<NumObject> testData = getTest(1000);
-	// xData.value = testData[0];
-	// yData.value = testData[1];
+	initalize(cost);
 
-	// initalize(cost);
+	getValue(cost);
 
-	// NumObject prediction = getValue(layer1);
+	NumObject prediction = showValue(layer3);
 
-	// Max a = Max(new Constant(prediction), 1);
-	// Max b = Max(new Constant(yData.value), 1);
-	// initalize(&a);
-	// initalize(&b);
-	// getValue(&a);
-	// getValue(&b);
+	float total = 0.0;
+	float currentVal;
+	float maxVal;
+	int indexVal;
+	for (int i = 0; i < prediction.dimentions[0]; i++){
+		indexVal = -1;
+		maxVal = -numeric_limits<float>::max();
+		for (int x = 0; x < prediction.dimentions[1]; x++){
+			currentVal = prediction.values[i * prediction.dimentions[1] + x];
+			if (currentVal > maxVal){
+				maxVal = currentVal;
+				indexVal = x;
+			}
+		}
+		if (yData.value.values[i * prediction.dimentions[1] + indexVal] == 1){
+			total += 1.0;
+		}
+	}
 
-	// NumObject readValA = NumObject(a.resultDims.dimentions, 0.0);
-	// queue.enqueueReadBuffer(a.idx, CL_TRUE, 0, sizeof(float) * a.resultDims.size, &readValA.values[0]);
-
-	// NumObject readValB = NumObject(b.resultDims.dimentions, 0.0);
-	// queue.enqueueReadBuffer(b.idx, CL_TRUE, 0, sizeof(float) * b.resultDims.size, &readValB.values[0]);
-
-	// cout << getValue(new Mean(new Constant(equal(readValA, readValB)))).describe() << endl;
+	cout << total / (float)(prediction.dimentions[0]) << endl;
 }
 
 vector<NumObject> getTrain(int n){
