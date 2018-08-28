@@ -47,7 +47,7 @@ public:
 
 class Sum: public Node{
 public:
-	cl::Buffer resedue;
+	vector<cl::Buffer> resedue;
 	int dimention;
 	int GROUP_SIZE;
 	int globalSize;
@@ -74,7 +74,7 @@ class Max: public Node{
 public:
 	int dimention;
 	int preSum;
-	cl::Buffer idx;
+	vector<cl::Buffer> idx;
 	Max(Node* a, int dimentionVal = 0);
 
 	void getDimentions();

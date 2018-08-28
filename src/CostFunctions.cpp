@@ -35,8 +35,13 @@ void CostFunction::getDimentions(){
 		globalSize -= GROUP_SIZE;
 	}
 
-	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
-	resedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * numGroups);
+	result = {};
+	resedue = {};
+	for (int i = 0; i < timeSteps; i++){
+		result.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size));
+		resedue.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * numGroups));
+	}
+
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -88,34 +93,50 @@ void MeanSquared::getDimentions(){
 		globalSize -= GROUP_SIZE;
 	}
 
-	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
-	differenceMemo = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size);
-	resedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * numGroups);
+	result = {};
+	differenceMemo = {};
+	resedue = {};
+	for (int i = 0; i < timeSteps; i++){
+		result.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size));
+		differenceMemo.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size));
+		resedue.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * numGroups));
+	}
+
 	getCount = (getCount + 1) % outCount;
 }
 
 void MeanSquared::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	meanSquaredPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->result, differenceMemo, resedue);
-	meanFullResedue(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), resedue, result, inputs[0]->resultDims.dimentions[dimention], numGroups);
+	meanSquaredPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result[currentTime % inputs[0]->timeSteps], inputs[1]->result[currentTime % inputs[1]->timeSteps], differenceMemo[currentTime], resedue[currentTime]);
+	meanFullResedue(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), resedue[currentTime], result[currentTime], inputs[0]->resultDims.dimentions[dimention], numGroups);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void MeanSquared::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			meanSquaredDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, differenceMemo, out[0], inputs[0]->resultDims.dimentions[dimention]);
+			meanSquaredDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, differenceMemo[realTime], out[0], inputs[0]->resultDims.dimentions[dimention]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -127,25 +148,35 @@ void MeanSquared::derive(){
 void CrossEntropy::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	crossEntropyPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->result, resedue);
-	meanFullResedue(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), resedue, result, inputs[0]->resultDims.dimentions[dimention], numGroups);
+	crossEntropyPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->resultDims.dimBuf, inputs[0]->result[currentTime % inputs[0]->timeSteps], inputs[1]->result[currentTime % inputs[1]->timeSteps], resedue[currentTime]);
+	meanFullResedue(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), resedue[currentTime], result[currentTime], inputs[0]->resultDims.dimentions[dimention], numGroups);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void CrossEntropy::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			crossEntropyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, inputs[0]->result, inputs[1]->result, out[0], inputs[0]->resultDims.dimentions[dimention]);
+			crossEntropyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, inputs[0]->result[realTime % inputs[0]->timeSteps], inputs[1]->result[realTime % inputs[1]->timeSteps], out[0], inputs[0]->resultDims.dimentions[dimention]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -192,39 +223,56 @@ void CrossEntropySoftmax::getDimentions(){
 	globalSize = (inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]) * dimSize;
 	numGroups = (inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]) * blocksWide;
 
-	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
-	resedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * numGroups);
-	resultResedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * (inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]));
-	softmaxMemo = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size);
+	result = {};
+	resedue = {};
+	resultResedue = {};
+	softmaxMemo = {};
+	for (int i = 0; i < timeSteps; i++){
+		result.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size));
+		resedue.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * numGroups));
+		resultResedue.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * (inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention])));
+		softmaxMemo.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * inputs[0]->resultDims.size));
+	}
+
 	getCount = (getCount + 1) % outCount;
 }
 
 void CrossEntropySoftmax::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	softmaxPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resedue, inputs[0]->resultDims.dimentions[dimention], preSum, blocksWide);
-	softmaxPt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]), cl::NullRange), resedue, resultResedue, blocksWide);
-	softmaxPt3(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resultResedue, resedue, inputs[0]->resultDims.dimentions[dimention], preSum, blocksWide);
-	softmaxPt4(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]), cl::NullRange), resedue, resultResedue, blocksWide);
-	crossEntropySoftmaxPt5(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, inputs[1]->result, resultResedue, resedue, softmaxMemo, inputs[0]->resultDims.dimentions[dimention], preSum, blocksWide);
-	meanFullResedue(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), resedue, result, inputs[0]->resultDims.dimentions[meanDimention], numGroups);
+	softmaxPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result[currentTime % inputs[0]->timeSteps], resedue[currentTime], inputs[0]->resultDims.dimentions[dimention], preSum, blocksWide);
+	softmaxPt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]), cl::NullRange), resedue[currentTime], resultResedue[currentTime], blocksWide);
+	softmaxPt3(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result[currentTime], resultResedue[currentTime], resedue[currentTime], inputs[0]->resultDims.dimentions[dimention], preSum, blocksWide);
+	softmaxPt4(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->resultDims.size / inputs[0]->resultDims.dimentions[dimention]), cl::NullRange), resedue[currentTime], resultResedue[currentTime], blocksWide);
+	crossEntropySoftmaxPt5(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result[currentTime % inputs[0]->timeSteps], inputs[1]->result[currentTime % inputs[1]->timeSteps], resultResedue[currentTime], resedue[currentTime], softmaxMemo[currentTime], inputs[0]->resultDims.dimentions[dimention], preSum, blocksWide);
+	meanFullResedue(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), resedue[currentTime], result[currentTime], inputs[0]->resultDims.dimentions[meanDimention], numGroups);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void CrossEntropySoftmax::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			crossEntropySoftmaxDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, softmaxMemo, inputs[1]->result, out[0], inputs[0]->resultDims.dimentions[meanDimention]);
+			crossEntropySoftmaxDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seed, softmaxMemo[realTime], inputs[1]->result[realTime % inputs[1]->timeSteps], out[0], inputs[0]->resultDims.dimentions[meanDimention]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 

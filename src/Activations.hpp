@@ -41,8 +41,8 @@ public:
 	int GROUP_SIZE;
 	int globalSize;
 	int blocksWide;
-	cl::Buffer resedue;
-	cl::Buffer resultResedue;
+	vector<cl::Buffer> resedue;
+	vector<cl::Buffer> resultResedue;
 	
 	Softmax(Node* a, int dimentionVal = -1);
 	

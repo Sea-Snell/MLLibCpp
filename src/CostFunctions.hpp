@@ -4,7 +4,7 @@
 
 class CostFunction: public Node{
 public:
-	cl::Buffer resedue;
+	vector<cl::Buffer> resedue;
 	int dimention;
 	int GROUP_SIZE;
 	int globalSize;
@@ -18,7 +18,7 @@ public:
 
 class MeanSquared: public CostFunction{
 public:
-	cl::Buffer differenceMemo;
+	vector<cl::Buffer> differenceMemo;
 
 	MeanSquared(Node* hypothesis, Node* y, int dimentionVal = 0): CostFunction(hypothesis, y, dimentionVal){name = "MeanSquared";}
 	void getDimentions();
@@ -37,8 +37,8 @@ public:
 
 class CrossEntropySoftmax: public CostFunction{
 public:
-	cl::Buffer softmaxMemo;
-	cl::Buffer resultResedue;
+	vector<cl::Buffer> softmaxMemo;
+	vector<cl::Buffer> resultResedue;
 	int meanDimention;
 	int preSum;
 	int blocksWide;

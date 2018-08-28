@@ -19,7 +19,72 @@ void kernel gradientDescentStep(constant const int* seedDim, global const float*
 	var[get_global_id(0)] -= seed[get_global_id(0) % seedDim[0]] * learningRate;
 }
 
+void kernel identityBuffer(global const float* A, global float* B){
+	B[get_global_id(0)] = A[get_global_id(0)];
+}
 
+void kernel RMSResid(global const float* seed, global float* residVal, const float decayRate){
+	residVal[get_global_id(0)] = decayRate * residVal[get_global_id(0)] + (1.0 - decayRate) * seed[get_global_id(0)] * seed[get_global_id(0)];
+}
+
+void kernel RMSStep(global const int* seedDims, global const float* seed, global const float* residVal, global float* var, const float learningRate, const float offset){
+	var[get_global_id(0)] -= (learningRate / sqrt(residVal[get_global_id(0) % seedDims[0]] + offset)) * seed[get_global_id(0) % seedDims[0]];
+}
+
+void kernel clipGrads(global float* seed, const float clipMin, const float clipMax){
+	if (seed[get_global_id(0)] < clipMin){
+		seed[get_global_id(0)] = clipMin;
+	}
+	else if (seed[get_global_id(0)] > clipMax){
+		seed[get_global_id(0)] = clipMax;
+	}
+}
+
+void kernel clipGradsNormPt1(constant const int* ADims, global const float* A, global float* resedue){
+	local float squared [128];
+
+	const int globalId = get_global_id(0);
+	const int localId = get_local_id(0);
+	const int localSize = get_local_size(0);
+	const int groupId = get_group_id(0);
+	const int totalSize = ADims[0];
+
+	if (globalId < totalSize){
+		float diff = A[globalId];
+		squared[localId] = diff * diff;
+	}
+	else{
+		squared[localId] = 0.0;
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+	int currentSize = localSize / 2;
+	while(currentSize > 0){
+		if (localId < currentSize){
+			squared[localId] += squared[localId + currentSize];
+		}
+		currentSize /= 2;
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (localId == 0){
+		resedue[groupId] = squared[0];
+	}
+}
+
+void kernel clipGradsNormPt2(global const float* resedue, global float* result, const int numGroups){
+	float total = resedue[0];
+	for (int i = 1; i < numGroups; i++){
+		total += resedue[i];
+	}
+	result[0] = sqrt(total);
+}
+
+void kernel clipGradsNormPt3(global const float* result, global float* A, const float clipMagnitude){
+	A[get_global_id(0)] = (A[get_global_id(0)] * clipMagnitude) / result[0];
+}
 
 
 
@@ -462,7 +527,7 @@ void kernel crossEntropySoftmaxPt5(global const float* hypothesis, global const 
 	}
 }
 
-void kernel meanFullResedue(global float* resedue, global float* result, const int dimentionSize, const int numGroups){
+void kernel meanFullResedue(global const float* resedue, global float* result, const int dimentionSize, const int numGroups){
 	float total = resedue[0];
 	for (int i = 1; i < numGroups; i++){
 		total += resedue[i];
@@ -1186,6 +1251,10 @@ void kernel softmaxDerivativePt3(global const float* C, constant const int* seed
 	if (dimIdx < dimentionSize){
 		out[finalIdx] = C[finalIdx] * (seed[finalIdx % seedDim[0]] - productSum);
 	}
+}
+
+void kernel setDerivative(constant const int* setDerivDim, global const float* setDeriv, constant const int* seedDim, global const float* seed, global float* out){
+	out[get_global_id(0)] = seed[get_global_id(0) % seedDim[0]] + setDeriv[get_global_id(0) % setDerivDim[0]];
 }
 
 

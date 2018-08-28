@@ -4,12 +4,18 @@
 void Add::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
 	inputs[1]->getValue();
-	add(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+	add(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[currentTime % inputs[0]->timeSteps], inputs[1]->resultDims.dimBuf, inputs[1]->result[currentTime % inputs[1]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Add::deriveDimentions(GPUDimentions* tempSeed){
@@ -30,7 +36,7 @@ void Add::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
 			addDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, out[0]);
@@ -43,7 +49,7 @@ void Add::derive(){
 			inputs[0]->derive();
 		}
 		if (typeid(*inputs[1]) != typeid(Constant)){
-			if (inputs[1]->getCount == 0){
+			if (inputs[1]->getCount == 0 && (inputs[1]->timeSteps != 1 || (inputs[1]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), inputs[1]->seed);
 			}
 			addDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), seedDims.dimBuf, seed, out[1]);
@@ -55,6 +61,8 @@ void Add::derive(){
 			}
 			inputs[1]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -63,12 +71,18 @@ void Add::derive(){
 void Subtract::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
 	inputs[1]->getValue();
-	subtract(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+	subtract(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[currentTime % inputs[0]->timeSteps], inputs[1]->resultDims.dimBuf, inputs[1]->result[currentTime % inputs[1]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Subtract::deriveDimentions(GPUDimentions* tempSeed){
@@ -89,7 +103,7 @@ void Subtract::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
 			addDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, out[0]);
@@ -102,7 +116,7 @@ void Subtract::derive(){
 			inputs[0]->derive();
 		}
 		if (typeid(*inputs[1]) != typeid(Constant)){
-			if (inputs[1]->getCount == 0){
+			if (inputs[1]->getCount == 0 && (inputs[1]->timeSteps != 1 || (inputs[1]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), inputs[1]->seed);
 			}
 			subtractDerivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), seedDims.dimBuf, seed, out[1]);
@@ -114,6 +128,8 @@ void Subtract::derive(){
 			}
 			inputs[1]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -122,13 +138,19 @@ void Subtract::derive(){
 void Multiply::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
 	inputs[1]->getValue();
 
-	multiply(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+	multiply(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[currentTime % inputs[0]->timeSteps], inputs[1]->resultDims.dimBuf, inputs[1]->result[currentTime % inputs[1]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Multiply::deriveDimentions(GPUDimentions* tempSeed){
@@ -148,11 +170,13 @@ void Multiply::deriveDimentions(GPUDimentions* tempSeed){
 void Multiply::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			multiplyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
+			multiplyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->resultDims.dimBuf, inputs[1]->result[realTime % inputs[1]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			if (outDims[0].rank > inputs[0]->seedDims.rank){
 				reduceSum(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			}
@@ -162,10 +186,10 @@ void Multiply::derive(){
 			inputs[0]->derive();
 		}
 		if (typeid(*inputs[1]) != typeid(Constant)){
-			if (inputs[1]->getCount == 0){
+			if (inputs[1]->getCount == 0 && (inputs[1]->timeSteps != 1 || (inputs[1]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), inputs[1]->seed);
 			}
-			multiplyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[1]);
+			multiplyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[1]);
 			if (outDims[1].rank > inputs[1]->seedDims.rank){
 				reduceSum(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), outDims[1].dimBuf, out[1], inputs[1]->seedDims.dimBuf, inputs[1]->seed);
 			}
@@ -174,6 +198,8 @@ void Multiply::derive(){
 			}
 			inputs[1]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -182,12 +208,18 @@ void Multiply::derive(){
 void Divide::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
 	inputs[1]->getValue();
-	divide(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+	divide(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[currentTime % inputs[0]->timeSteps], inputs[1]->resultDims.dimBuf, inputs[1]->result[currentTime % inputs[1]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Divide::deriveDimentions(GPUDimentions* tempSeed){
@@ -207,11 +239,13 @@ void Divide::deriveDimentions(GPUDimentions* tempSeed){
 void Divide::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			divideDerivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
+			divideDerivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[1]->resultDims.dimBuf, inputs[1]->result[realTime % inputs[1]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			if (outDims[0].rank > inputs[0]->seedDims.rank){
 				reduceSum(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			}
@@ -221,10 +255,10 @@ void Divide::derive(){
 			inputs[0]->derive();
 		}
 		if (typeid(*inputs[1]) != typeid(Constant)){
-			if (inputs[1]->getCount == 0){
+			if (inputs[1]->getCount == 0 && (inputs[1]->timeSteps != 1 || (inputs[1]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), inputs[1]->seed);
 			}
-			divideDerivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[1]);
+			divideDerivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[realTime % inputs[0]->timeSteps], inputs[1]->resultDims.dimBuf, inputs[1]->result[realTime % inputs[1]->timeSteps], seedDims.dimBuf, seed, out[1]);
 			if (outDims[1].rank > inputs[1]->seedDims.rank){
 				reduceSum(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), outDims[1].dimBuf, out[1], inputs[1]->seedDims.dimBuf, inputs[1]->seed);
 			}
@@ -233,6 +267,8 @@ void Divide::derive(){
 			}
 			inputs[1]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -241,12 +277,18 @@ void Divide::derive(){
 void Pow::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
 	inputs[1]->getValue();
-	pow_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, result);
+	pow_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[currentTime % inputs[0]->timeSteps], inputs[1]->resultDims.dimBuf, inputs[1]->result[currentTime % inputs[1]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Pow::deriveDimentions(GPUDimentions* tempSeed){
@@ -266,11 +308,13 @@ void Pow::deriveDimentions(GPUDimentions* tempSeed){
 void Pow::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			powDerivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, inputs[1]->resultDims.dimBuf, inputs[1]->result, seedDims.dimBuf, seed, out[0]);
+			powDerivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[realTime % inputs[0]->timeSteps], inputs[1]->resultDims.dimBuf, inputs[1]->result[realTime % inputs[1]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			if (outDims[0].rank > inputs[0]->seedDims.rank){
 				reduceSum(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			}
@@ -280,10 +324,10 @@ void Pow::derive(){
 			inputs[0]->derive();
 		}
 		if (typeid(*inputs[1]) != typeid(Constant)){
-			if (inputs[1]->getCount == 0){
+			if (inputs[1]->getCount == 0 && (inputs[1]->timeSteps != 1 || (inputs[1]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), inputs[1]->seed);
 			}
-			powDerivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, resultDims.dimBuf, result, seedDims.dimBuf, seed, out[1]);
+			powDerivative1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[1].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[realTime % inputs[0]->timeSteps], resultDims.dimBuf, result[realTime], seedDims.dimBuf, seed, out[1]);
 			if (outDims[1].rank > inputs[1]->seedDims.rank){
 				reduceSum(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[1]->seedDims.size), cl::NullRange), outDims[1].dimBuf, out[1], inputs[1]->seedDims.dimBuf, inputs[1]->seed);
 			}
@@ -292,6 +336,8 @@ void Pow::derive(){
 			}
 			inputs[1]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -300,24 +346,34 @@ void Pow::derive(){
 void Ln::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	ln(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	ln(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Ln::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			divideDerivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			divideDerivative0(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->resultDims.dimBuf, inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -326,24 +382,34 @@ void Ln::derive(){
 void Exp::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	exp_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	exp_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Exp::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			multiplyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), resultDims.dimBuf, result, seedDims.dimBuf, seed, out[0]);
+			multiplyDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), resultDims.dimBuf, result[realTime], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -357,24 +423,34 @@ Log::Log(Node* a, float baseVal): BasicFunction(a){
 void Log::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	log_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result, (float)log(base));
+	log_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime], (float)log(base));
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Log::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			logDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, (float)log(base), seedDims.dimBuf, seed, out[0]);
+			logDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], (float)log(base), seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -389,24 +465,34 @@ string Log::describe(){
 void Sin::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	sin_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	sin_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Sin::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			sinDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			sinDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -417,24 +503,34 @@ void Sin::derive(){
 void Cos::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	cos_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	cos_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Cos::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			cosDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			cosDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -446,24 +542,34 @@ void Cos::derive(){
 void Tan::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	tan_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	tan_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Tan::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			tanDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			tanDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -473,24 +579,34 @@ void Tan::derive(){
 void ArcSin::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	asin_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	asin_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void ArcSin::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			asinDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			asinDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -501,24 +617,34 @@ void ArcSin::derive(){
 void ArcCos::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	acos_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	acos_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void ArcCos::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			acosDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			acosDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -528,24 +654,34 @@ void ArcCos::derive(){
 void ArcTan::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	atan_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	atan_(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void ArcTan::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			atanDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			atanDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 

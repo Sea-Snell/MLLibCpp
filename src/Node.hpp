@@ -20,6 +20,13 @@ extern cl::make_kernel<cl::Buffer> zeroBuffer;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> reduceSum;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> explodeUp;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, float> gradientDescentStep;
+extern cl::make_kernel<cl::Buffer, cl::Buffer> identityBuffer;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, float> RMSResid;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, float, float> RMSStep;
+extern cl::make_kernel<cl::Buffer, float, float> clipGrads;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> clipGradsNormPt1;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, int> clipGradsNormPt2;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, float> clipGradsNormPt3;
 
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> add;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> subtract;
@@ -101,6 +108,7 @@ extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> softsignD
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivativePt1;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, int> softmaxDerivativePt2;
 extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivativePt3;
+extern cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> setDerivative;
 
 
 void initialize();
@@ -141,7 +149,7 @@ public:
 	string name;
 
 	GPUDimentions resultDims;
-	cl::Buffer result;
+	vector<cl::Buffer> result;
 
 	GPUDimentions seedDims;
 	cl::Buffer seed;
@@ -151,6 +159,9 @@ public:
 
 	int outCount;
 	int getCount;
+
+	int timeSteps;
+	int currentTime;
 
 	Node();
 	virtual void getValue() = 0;
@@ -171,8 +182,9 @@ public:
 
 class Constant: public Node{
 public:
-	NumObject value;
+	vector<NumObject> value;
 	Constant(NumObject val, string placeHolder = "");
+	Constant(vector<NumObject> val, string placeHolder = "");
 	void getValue();
 	void getDimentions();
 	void deriveDimentions(GPUDimentions* tempSeed);
@@ -185,6 +197,7 @@ public:
 class Variable: public Constant{
 public:
 	Variable(NumObject val, string placeHolder = ""): Constant(val, placeHolder){}
+	Variable(vector<NumObject> val, string placeHolder = ""): Constant(val, placeHolder){}
 	void deriveDimentions(GPUDimentions* tempSeed);
 };
 

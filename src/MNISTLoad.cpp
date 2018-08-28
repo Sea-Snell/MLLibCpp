@@ -3,8 +3,6 @@
 #include <fstream>
 
 vector<NumObject> randomTestSet(int n){
-	srand(time(NULL));
-
 	NumObject ansX = NumObject(vector<int> {n, 28 * 28});
 	NumObject ansY = NumObject(vector<int> {n});
 
@@ -37,8 +35,6 @@ vector<NumObject> randomTestSet(int n){
 }
 
 vector<NumObject> randomTrainSet(int n){
-	srand(time(NULL));
-
 	NumObject ansX = NumObject(vector<int> {n, 28 * 28});
 	NumObject ansY = NumObject(vector<int> {n});
 

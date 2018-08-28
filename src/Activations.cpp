@@ -4,96 +4,136 @@
 void Sigmoid::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	sigmoid(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	sigmoid(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Sigmoid::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			sigmoidDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), result, seedDims.dimBuf, seed, out[0]);
+			sigmoidDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), result[realTime], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
 void ReLU::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	reLU(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	reLU(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void ReLU::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			reLUDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			reLUDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
 void LeakyReLU::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	leakyReLU(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	leakyReLU(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void LeakyReLU::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			leakyReLUDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			leakyReLUDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
 void Gaussian::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	gaussian(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	gaussian(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Gaussian::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			gaussianDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, result, seedDims.dimBuf, seed, out[0]);
+			gaussianDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], result[realTime], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -136,24 +176,36 @@ void Softmax::getDimentions(){
 	blocksWide = dimSize / GROUP_SIZE;
 	globalSize = (resultDims.size / resultDims.dimentions[dimention]) * dimSize;
 
-	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
-	resedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * ((resultDims.size / resultDims.dimentions[dimention]) * blocksWide));
-	resultResedue = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * (resultDims.size / resultDims.dimentions[dimention]));
+	result = {};
+	resedue = {};
+	resultResedue = {};
+	for (int i = 0; i < timeSteps; i++){
+		result.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size));
+		resedue.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * ((resultDims.size / resultDims.dimentions[dimention]) * blocksWide)));
+		resultResedue.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * (resultDims.size / resultDims.dimentions[dimention])));
+	}
+
 	getCount = (getCount + 1) % outCount;
 }
 
 void Softmax::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	softmaxPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resedue, resultDims.dimentions[dimention], preSum, blocksWide);
-	softmaxPt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue, resultResedue, blocksWide);
-	softmaxPt3(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resultResedue, resedue, resultDims.dimentions[dimention], preSum, blocksWide);
-	softmaxPt4(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue, resultResedue, blocksWide);
-	softmaxPt5(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result, resultResedue, result, resultDims.dimentions[dimention], preSum, blocksWide);
+	softmaxPt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result[currentTime % inputs[0]->timeSteps], resedue[currentTime], resultDims.dimentions[dimention], preSum, blocksWide);
+	softmaxPt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue[currentTime], resultResedue[currentTime], blocksWide);
+	softmaxPt3(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result[currentTime % inputs[0]->timeSteps], resultResedue[currentTime], resedue[currentTime], resultDims.dimentions[dimention], preSum, blocksWide);
+	softmaxPt4(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue[currentTime], resultResedue[currentTime], blocksWide);
+	softmaxPt5(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), inputs[0]->result[currentTime % inputs[0]->timeSteps], resultResedue[currentTime], result[currentTime], resultDims.dimentions[dimention], preSum, blocksWide);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Softmax::deriveDimentions(GPUDimentions* tempSeed){
@@ -170,16 +222,20 @@ void Softmax::deriveDimentions(GPUDimentions* tempSeed){
 void Softmax::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			softmaxDerivativePt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), result, seedDims.dimBuf, seed, resedue, resultDims.dimentions[dimention], preSum, blocksWide);
-			softmaxDerivativePt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue, resultResedue, blocksWide);
-			softmaxDerivativePt3(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), result, seedDims.dimBuf, seed, resultResedue, out[0], resultDims.dimentions[dimention], preSum, blocksWide);
+			softmaxDerivativePt1(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), result[realTime], seedDims.dimBuf, seed, resedue[realTime], resultDims.dimentions[dimention], preSum, blocksWide);
+			softmaxDerivativePt2(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size / resultDims.dimentions[dimention]), cl::NullRange), resedue[realTime], resultResedue[realTime], blocksWide);
+			softmaxDerivativePt3(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(globalSize), cl::NDRange(GROUP_SIZE)), result[realTime], seedDims.dimBuf, seed, resultResedue[realTime], out[0], resultDims.dimentions[dimention], preSum, blocksWide);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
@@ -191,48 +247,68 @@ string Softmax::describe(){
 void TanH::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	tanH(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	tanH(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void TanH::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			tanHDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), result, seedDims.dimBuf, seed, out[0]);
+			tanHDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), result[realTime], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 
 void Softsign::getValue(){
 	if(getCount != 0){
 		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
 		return;
 	}
 	inputs[0]->getValue();
-	softsign(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result, result);
+	softsign(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime % inputs[0]->timeSteps], result[currentTime]);
 	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
 }
 
 void Softsign::derive(){
 	getCount = (getCount + 1) % outCount;
 	if (getCount == 0){
+		int realTime = (timeSteps - 1) - currentTime;
+
 		if (typeid(*inputs[0]) != typeid(Constant)){
-			if (inputs[0]->getCount == 0){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
 				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
 			}
-			softsignDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result, seedDims.dimBuf, seed, out[0]);
+			softsignDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), inputs[0]->result[realTime % inputs[0]->timeSteps], seedDims.dimBuf, seed, out[0]);
 			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
 			inputs[0]->derive();
 		}
+
+		currentTime = (currentTime + 1) % timeSteps;
 	}
 }
 

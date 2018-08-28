@@ -2,14 +2,14 @@
 #define HELPERFUNCTIONS_H
 #include "Node.hpp"
 
-NumObject getValue(Node* expression);
+vector<NumObject> getValue(Node* expression);
 void initalize(Node* expression);
 
 void derive(Node* expression);
 void clearHistory(Node* expression);
 
 NumObject showSeed(Node* expression);
-NumObject showValue(Node* expression);
+vector<NumObject> showValue(Node* expression);
 
 // NumObject deriveTime(Node* expression, vector<vector<NumObject>>& timeVals, vector<Constant*>& sub);
 
@@ -27,17 +27,22 @@ NumObject equal(NumObject& a, NumObject& b);
 
 NumObject oneHot(NumObject items, int low, int high);
 
-// void saveData(NumObject data, string name);
-// NumObject loadData(string name);
+void saveData(NumObject data, string name);
+NumObject loadData(string name);
 
 
-// class Set: public Node{
-// public:
-// 	Set(Node* source, Variable* goal);
-// 	NumObject getValue(int t = 0, int tf = 0);
-// 	void derive(NumObject& seed, int t = 0, int tf = 0);
-// 	string describe();
-// };
+class Set: public Node{
+public:
+	Variable* setGoal;
+
+	Set(Node* source, Variable* goal);
+	
+	void getDimentions();
+	void getValue();
+	void deriveDimentions(GPUDimentions* tempSeed);
+	void derive();
+	string describe();
+};
 
 
 // class Gate: public Node{

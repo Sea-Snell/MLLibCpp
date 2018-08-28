@@ -6,12 +6,17 @@
 #include <iomanip>
 #include <random>
 
-NumObject getValue(Node* expression){
+vector<NumObject> getValue(Node* expression){
 	int tempOutCount = expression->outCount;
 	expression->outCount = 1;
-	expression->getValue();
-	NumObject result = NumObject(expression->resultDims.dimentions, 0.0);
-	queue.enqueueReadBuffer(expression->result, CL_TRUE, 0, sizeof(float) * expression->resultDims.size, &result.values[0]);
+	vector<NumObject> result = {};
+	for (int i = 0; i < expression->timeSteps; i++){
+		expression->getValue();
+		result.push_back(NumObject(expression->resultDims.dimentions, 0.0));
+	}
+	for (int i = 0; i < expression->timeSteps; i++){
+		queue.enqueueReadBuffer(expression->result[i], CL_TRUE, 0, sizeof(float) * expression->resultDims.size, &result[i].values[0]);
+	}
 	expression->outCount = tempOutCount;
 	return result;
 }
@@ -32,8 +37,12 @@ void initalize(Node* expression){
 void derive(Node* expression){
 	int tempOutCount = expression->outCount;
 	expression->outCount = 1;
-	expression->getValue();
-	expression->derive();
+	for (int i = 0; i < expression->timeSteps; i++){
+		expression->getValue();
+	}
+	for (int i = 0; i < expression->timeSteps; i++){
+		expression->derive();
+	}
 	expression->outCount = tempOutCount;
 }
 
@@ -48,9 +57,14 @@ NumObject showSeed(Node* expression){
 	return seed;
 }
 
-NumObject showValue(Node* expression){
-	NumObject result = NumObject(expression->resultDims.dimentions, 0.0);
-	queue.enqueueReadBuffer(expression->result, CL_TRUE, 0, sizeof(float) * expression->resultDims.size, &result.values[0]);
+vector<NumObject> showValue(Node* expression){
+	vector<NumObject> result = {};
+	for (int i = 0; i < expression->timeSteps; i++){
+		result.push_back(NumObject(expression->resultDims.dimentions, 0.0));
+	}
+	for (int i = 0; i < expression->timeSteps; i++){
+		queue.enqueueReadBuffer(expression->result[i], CL_TRUE, 0, sizeof(float) * expression->resultDims.size, &result[i].values[0]);
+	}
 	return result;
 }
 
@@ -111,7 +125,7 @@ NumObject showValue(Node* expression){
 // }
 
 NumObject gaussianRandomNums(vector<int> dimentions, double mean, double stdDev){
-	srand(time(NULL));
+	// srand(time(NULL));
 
 	random_device rd;
     mt19937 gen(rd());
@@ -135,7 +149,7 @@ NumObject gaussianRandomNums(vector<int> dimentions, double mean, double stdDev)
 }
 
 NumObject trunGaussianRandomNums(vector<int> dimentions, double mean, double stdDev){
-	srand(time(NULL));
+	// srand(time(NULL));
 
 	random_device rd;
     mt19937 gen(rd());
@@ -167,7 +181,7 @@ NumObject trunGaussianRandomNums(vector<int> dimentions, double mean, double std
 }
 
 NumObject uniformRandomNums(vector<int> dimentions, double low, double high){
-	srand(time(NULL));
+	// srand(time(NULL));
 
 	random_device rd;
     mt19937 gen(rd());
@@ -270,90 +284,137 @@ NumObject oneHot(NumObject items, int low, int high){
 	return ans;
 }
 
-// void saveData(NumObject data, string name){
-// 	ofstream newFile;
-// 	newFile.open(name, ios::out | ios::trunc);
-
-// 	newFile << data.rank << endl;
-
-// 	for(int i = 0; i < data.rank; i++){
-// 		newFile << data.dimentions[i] << endl;
-// 	}
-
-// 	for(int i = 0; i < data.values.size(); i++){
-// 		newFile << fixed << setprecision(6) << data.values[i] << endl;
-// 	}
-
-// 	newFile.close();
-// }
-
-// NumObject loadData(string name){
-// 	ifstream newFile;
-// 	newFile.open(name, ios::in);
-
-// 	int rank;
-// 	vector<int> dimentions;
-// 	vector<double> values;
-// 	int temp1;
-// 	double temp2;
-
-// 	newFile >> rank;
-
-// 	for(int i = 0; i < rank; i++){
-// 		newFile >> temp1;
-// 		dimentions.push_back(temp1);
-// 	}
-
-// 	while(newFile >> temp2){
-// 		values.push_back(temp2);
-// 	}
-
-// 	newFile.close();
-
-// 	return NumObject(values, dimentions);
-// }
+void saveData(NumObject data, string name){
+	ofstream newFile;
+	newFile.open(name, ios::out | ios::trunc);
+	newFile << data.rank << endl;
 
 
+	for(int i = 0; i < data.rank; i++){
+		newFile << data.dimentions[i] << endl;
+	}
 
-// Set::Set(Node* source, Variable* goal){
-// 	outCount = 0;
-// 	inputs.push_back(source);
-// 	inputs.push_back(goal);
-// 	source->outCount += 1;
-// 	goal->outCount += 1;
-// 	name = "->";
-// 	dCallCount = 0;
-// 	gCallCount = 0;
-// }
+	for(int i = 0; i < data.size; i++){
+		newFile << fixed << setprecision(6) << data.values[i] << endl;
+	}
 
-// NumObject Set::getValue(int t, int tf){
-// 	gCallCount += 1;
-// 	if(gCallCount > 1){
-// 		if(gCallCount >= outCount){
-// 			gCallCount = 0;
-// 		}
-// 		return derivativeMemo[t];
-// 	}
-// 	if(gCallCount >= outCount){
-// 		gCallCount = 0;
-// 	}
+	newFile.close();
+}
 
-// 	NumObject ans = inputs[0]->getValue(t, tf);
-// 	inputs[1]->getValue(t, tf);
-// 	dynamic_cast<Variable*>(inputs[1])->value = ans;
-// 	return memoize(ans, t, tf);
-// }
+NumObject loadData(string name){
+	ifstream newFile;
+	newFile.open(name, ios::in);
 
-// void Set::derive(NumObject& seed, int t, int tf){
-// 	if(sumSeed(seed)){
-// 		inputs[1]->derive(tempSeed, t, tf);
-// 		inputs[0]->derive(dynamic_cast<Variable*>(inputs[1])->derivative, t, tf);
-// 	}
-// }
+	int rank;
+	vector<int> dimentions;
+	vector<float> values;
+	int temp1;
+	float temp2;
 
-// string Set::describe(){
-// 	return "(" + inputs[0]->describe() + " " + name + " " + inputs[1]->describe() + ")";
-// }
+	newFile >> rank;
+
+	for(int i = 0; i < rank; i++){
+		newFile >> temp1;
+		dimentions.push_back(temp1);
+	}
+
+	while(newFile >> temp2){
+		values.push_back(temp2);
+	}
+
+	newFile.close();
+
+	return NumObject(values, dimentions);
+}
+
+
+
+Set::Set(Node* source, Variable* goal){
+	setGoal = goal;
+	inputs.push_back(source);
+	source->outputs.push_back(this);
+	source->outCount += 1;
+	name = "->";
+}
+
+void Set::getDimentions(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		return;
+	}
+
+	inputs[0]->getDimentions();
+
+	resultDims.rank = inputs[0]->resultDims.rank;
+	resultDims.size = inputs[0]->resultDims.size;
+	resultDims.dimentions = inputs[0]->resultDims.dimentions;
+
+	resultDims.setBuf();
+
+	result = {};
+	for (int i = 0; i < timeSteps; i++){
+		result.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size));
+	}
+
+	getCount = (getCount + 1) % outCount;
+}
+
+void Set::getValue(){
+	if(getCount != 0){
+		getCount = (getCount + 1) % outCount;
+		if (getCount == 0){
+			currentTime = (currentTime + 1) % timeSteps;
+		}
+		return;
+	}
+	inputs[0]->getValue();
+	
+	identityBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime], result[currentTime]);
+	if (currentTime < timeSteps - 1){
+		identityBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(resultDims.size), cl::NullRange), inputs[0]->result[currentTime], setGoal->result[currentTime + 1]);
+	}
+
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		currentTime = (currentTime + 1) % timeSteps;
+	}
+}
+
+void Set::deriveDimentions(GPUDimentions* tempSeed){
+	getCount = (getCount + 1) % outCount;
+	seedDimAdd(tempSeed);
+
+	if (getCount == 0){
+		outDims.push_back(getMaxDimentions(vector<GPUDimentions*>{&seedDims, &setGoal->resultDims}));
+		out.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * outDims[0].size));
+		inputs[0]->deriveDimentions(&outDims[0]);
+	}
+}
+
+void Set::derive(){
+	getCount = (getCount + 1) % outCount;
+	if (getCount == 0){
+		if (typeid(*inputs[0]) != typeid(Constant)){
+			if (inputs[0]->getCount == 0 && (inputs[0]->timeSteps != 1 || (inputs[0]->timeSteps == 1 && currentTime == 0))){
+				zeroBuffer(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), inputs[0]->seed);
+			}
+			if (currentTime == 0){
+				addDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), seedDims.dimBuf, seed, out[0]);
+			}
+			else{
+				setDerivative(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(outDims[0].size), cl::NullRange), setGoal->seedDims.dimBuf, setGoal->seed, seedDims.dimBuf, seed, out[0]);
+			}
+			explodeUp(cl::EnqueueArgs(queue, cl::NullRange, cl::NDRange(inputs[0]->seedDims.size), cl::NullRange), outDims[0].dimBuf, out[0], inputs[0]->seedDims.dimBuf, inputs[0]->seed);
+			inputs[0]->derive();
+		}
+
+		currentTime = (currentTime + 1) % timeSteps;
+	}
+}
+
+string Set::describe(){
+	return "(" + inputs[0]->describe() + " " + name + " " + setGoal->describe() + ")";
+}
 
 
 

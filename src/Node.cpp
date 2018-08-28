@@ -8,6 +8,13 @@ cl::make_kernel<cl::Buffer> zeroBuffer(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> reduceSum(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> explodeUp(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, float> gradientDescentStep(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer> identityBuffer(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, float> RMSResid(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, float, float> RMSStep(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, float, float> clipGrads(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer> clipGradsNormPt1(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, int> clipGradsNormPt2(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, float> clipGradsNormPt3(cl::Kernel(program, ""));
 
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> add(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> subtract(cl::Kernel(program, ""));
@@ -89,6 +96,7 @@ cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> softsignDerivati
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivativePt1(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, int> softmaxDerivativePt2(cl::Kernel(program, ""));
 cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int> softmaxDerivativePt3(cl::Kernel(program, ""));
+cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer> setDerivative(cl::Kernel(program, ""));
 
 void initialize(){
 	vector<cl::Platform> allPlatforms;
@@ -137,6 +145,13 @@ void initialize(){
 	reduceSum = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "reduceSum"));
 	explodeUp = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "explodeUp"));
 	gradientDescentStep = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, float>(cl::Kernel(program, "gradientDescentStep"));
+	identityBuffer = cl::make_kernel<cl::Buffer, cl::Buffer>(cl::Kernel(program, "identityBuffer"));
+	RMSResid = cl::make_kernel<cl::Buffer, cl::Buffer, float>(cl::Kernel(program, "RMSResid"));
+	RMSStep = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, float, float>(cl::Kernel(program, "RMSStep"));
+	clipGrads = cl::make_kernel<cl::Buffer, float, float>(cl::Kernel(program, "clipGrads"));
+	clipGradsNormPt1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "clipGradsNormPt1"));
+	clipGradsNormPt2 = cl::make_kernel<cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "clipGradsNormPt2"));
+	clipGradsNormPt3 = cl::make_kernel<cl::Buffer, cl::Buffer, float>(cl::Kernel(program, "clipGradsNormPt3"));
 
 	add = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "add"));
 	subtract = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "subtract"));
@@ -218,6 +233,7 @@ void initialize(){
 	softmaxDerivativePt1 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmaxDerivativePt1"));
 	softmaxDerivativePt2 = cl::make_kernel<cl::Buffer, cl::Buffer, int>(cl::Kernel(program, "softmaxDerivativePt2"));
 	softmaxDerivativePt3 = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int, int, int>(cl::Kernel(program, "softmaxDerivativePt3"));
+	setDerivative = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer>(cl::Kernel(program, "setDerivative"));
 }
 
 NumObject::NumObject(){}
@@ -335,6 +351,8 @@ string GPUDimentions::describe(){
 Node::Node(){
 	outCount = 0;
 	getCount = 0;
+	timeSteps = 1;
+	currentTime = 0;
 }
 
 string Node::describe(){
@@ -359,8 +377,13 @@ void Node::clean(){
 	outDims = {};
 	out = {};
 
+	if (inputs.size() != 0){
+		timeSteps = 1;
+	}
 	for (int i = 0; i < inputs.size(); i++){
 		inputs[i]->clean();
+
+		timeSteps = max(timeSteps, inputs[i]->timeSteps);
 	}
 	getCount = (getCount + 1) % outCount;
 }
@@ -400,7 +423,14 @@ GPUDimentions Node::getMaxDimentions(vector<GPUDimentions*> dimentionSet){
 
 Constant::Constant(NumObject val, string placeHolder){
 	name = placeHolder;
+	value = {val};
+}
+
+Constant::Constant(vector<NumObject> val, string placeHolder){
+	name = placeHolder;
 	value = val;
+
+	timeSteps = val.size();
 }
 
 void Constant::getValue(){
@@ -413,13 +443,16 @@ void Constant::getDimentions(){
 		return;
 	}
 
-	resultDims.rank = value.rank;
-	resultDims.size = value.size;
-	resultDims.dimentions = value.dimentions;
+	resultDims.rank = value[0].rank;
+	resultDims.size = value[0].size;
+	resultDims.dimentions = value[0].dimentions;
 	resultDims.setBuf();
 
-	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
-	queue.enqueueWriteBuffer(result, CL_TRUE, 0, sizeof(float) * resultDims.size, &value.values[0]);
+	result = {};
+	for (int i = 0; i < timeSteps; i++){
+		result.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size));
+		queue.enqueueWriteBuffer(result[i], CL_TRUE, 0, sizeof(float) * resultDims.size, &value[i].values[0]);
+	}
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -428,16 +461,20 @@ void Constant::deriveDimentions(GPUDimentions* tempSeed){
 }
 
 void Constant::updateHostVals(){
-	queue.enqueueReadBuffer(result, CL_TRUE, 0, sizeof(float) * resultDims.size, &value.values[0]);
+	for (int i = 0; i < timeSteps; i++){
+		queue.enqueueReadBuffer(result[i], CL_TRUE, 0, sizeof(float) * resultDims.size, &value[i].values[0]);
+	}
 }
 
 void Constant::updateDeviceVals(){
-	queue.enqueueWriteBuffer(result, CL_TRUE, 0, sizeof(float) * resultDims.size, &value.values[0]);
+	for (int i = 0; i < timeSteps; i++){
+		queue.enqueueWriteBuffer(result[i], CL_TRUE, 0, sizeof(float) * resultDims.size, &value[i].values[0]);
+	}
 }
 
 string Constant::describe(){
 	if (name == ""){
-		return value.describe();
+		return value[currentTime].describe();
 	}
 	return name;
 }
@@ -480,7 +517,11 @@ void BasicOperator::getDimentions(){
 
 	resultDims.setBuf();
 
-	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	result = {};
+	for (int i = 0; i < timeSteps; i++){
+		result.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size));
+	}
+
 	getCount = (getCount + 1) % outCount;
 }
 
@@ -508,7 +549,11 @@ void BasicFunction::getDimentions(){
 
 	resultDims.setBuf();
 
-	result = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size);
+	result = {};
+	for (int i = 0; i < timeSteps; i++){
+		result.push_back(cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(float) * resultDims.size));
+	}
+
 	getCount = (getCount + 1) % outCount;
 }
 
